@@ -38,10 +38,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--mono);overflow:hidde
 #dnext{align-self:flex-end;font-size:14px;padding:9px 20px}
 #skip{position:fixed;right:16px;top:calc(12px + env(safe-area-inset-top,0px) + var(--tgtop,0px));z-index:3;background:rgba(9,10,16,.7)}
 #fade{position:fixed;inset:0;z-index:4;background:#000;color:var(--fg);display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-family:var(--display);font-size:20px;opacity:0;transition:opacity .7s}
-#pbtn{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px) + var(--tgtop,0px));z-index:2;font-size:14px;padding:7px 14px;background:rgba(9,10,16,.72);color:var(--fg);border:1px solid var(--dim)}
+#pbtn{position:fixed;left:calc(190px + env(safe-area-inset-left,0px));top:calc(9px + env(safe-area-inset-top,0px) + var(--tgtop,0px));z-index:2;font-size:14px;padding:7px 14px;background:rgba(9,10,16,.72);color:var(--fg);border:1px solid var(--dim)}
 #upg .col button{font-size:15px}
 #uname{min-width:8ch}
-#wbtn{position:fixed;left:16px;top:calc(42px + env(safe-area-inset-top,0px) + var(--tgtop,0px));z-index:2;font-size:13px;padding:7px 11px;background:rgba(9,10,16,.72);color:var(--fg);border:1px solid var(--dim);text-transform:none;letter-spacing:0}
+#wbtn{position:fixed;left:calc(16px + env(safe-area-inset-left,0px));top:calc(42px + env(safe-area-inset-top,0px) + var(--tgtop,0px));z-index:2;font-size:13px;padding:7px 11px;background:rgba(9,10,16,.72);color:var(--fg);border:1px solid var(--dim);text-transform:none;letter-spacing:0}
 #menu>*{position:relative}
 #menu img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 60%;image-rendering:pixelated}
 @media (orientation:landscape){#menu img.bg{object-fit:contain}}
@@ -100,7 +100,7 @@ button.ghost:hover{background:var(--panel);border-color:var(--fg)}
 <canvas id="c"></canvas>
 <button id="buy" hidden></button>
 <button id="wbtn" hidden aria-label="Сменить оружие"></button>
-<button id="pbtn" hidden aria-label="Пауза">II</button>
+<button id="pbtn" hidden>Пауза</button>
 <button id="fire" hidden aria-label="Огонь">Огонь</button>
 <button id="abil" hidden aria-label="Суперспособность">Супер</button>
 <div id="rot" hidden><div class="ph"></div><p>Поверни телефон горизонтально</p><button class="ghost" id="rotskip">Играть вертикально</button></div>
@@ -210,8 +210,10 @@ button.ghost:hover{background:var(--panel);border-color:var(--fg)}
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
 const W=2000,H=2000,TAU=Math.PI*2,rnd=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>v<a?a:v>b?b:v;
-let vw=0,vh=0,dpr=1,zoom=1,state='load';
-function resize(){dpr=Math.min(window.devicePixelRatio||1,2);vw=innerWidth;vh=innerHeight;cv.width=vw*dpr;cv.height=vh*dpr;zoom=clamp(Math.min(vw,vh)/700,.6,1.3)}
+let vw=0,vh=0,dpr=1,zoom=1,state='load',SL=0,SR=0;
+function resize(){dpr=Math.min(window.devicePixelRatio||1,2);vw=innerWidth;vh=innerHeight;cv.width=vw*dpr;cv.height=vh*dpr;zoom=clamp(Math.min(vw,vh)/700,.6,1.3);
+  try{if(!resize.p){resize.p=document.createElement('div');resize.p.style.cssText='position:fixed;left:0;top:0;visibility:hidden;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)';document.body.appendChild(resize.p)}
+    const cs=getComputedStyle(resize.p);SL=parseFloat(cs.paddingLeft)||0;SR=parseFloat(cs.paddingRight)||0}catch(e){}}
 addEventListener('resize',resize);resize();
 
 /* ---------- loading screen ---------- */
@@ -291,7 +293,7 @@ const ZONES=[CAR,GARD,GRAV,PLANK,{x:420,y:1600,w:440,h:340},{x:650,y:1640,w:230,
 const ICON=[null,[[-22,-6,16,5],[-22,-6,5,11],[6,-6,16,5],[6,-6,5,11]],[[-24,-3,48,4],[-24,-3,10,9],[2,2,14,5]],[[-12,-6,22,8],[10,-4,9,4],[-2,2,5,13],[-12,2,5,8]],
   [[-24,-4,12,7],[-12,-5,18,7],[6,-4,20,3],[-2,2,6,11],[2,10,5,4],[-12,2,4,7],[22,-7,2,4]],[[-25,-4,10,8],[-15,-6,20,9],[5,-4,22,4],[-8,3,12,10],[20,0,2,11],[25,0,2,11]],
   [[-22,-6,30,12],[8,-3,14,6],[-16,-10,4,20],[-8,-10,4,20],[0,-10,4,20]]];
-function pop(p){p.a=0;splat(p.x,p.y,12,'#e8760f');snd(190,.14,'triangle',.07,.4);for(let i=0;i<10;i++){const a=rnd(0,TAU),s=rnd(80,300);parts.push({x:p.x,y:p.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:rnd(.2,.5),c:i%3?'#ff8a1e':'#f2d14a'})}}
+function pop(p){p.a=0;p.t=rnd(20,35);splat(p.x,p.y,12,'#e8760f');snd(190,.14,'triangle',.07,.4);for(let i=0;i<10;i++){const a=rnd(0,TAU),s=rnd(80,300);parts.push({x:p.x,y:p.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:rnd(.2,.5),c:i%3?'#ff8a1e':'#f2d14a'})}}
 function growl(){if(!ac||!opt.sound)return;
   const zs=['z1','z2','z3','z4','z5'].filter(k=>BUF[k]);if(zs.length){if(ac.currentTime-(growl.t||0)<1.4)return;growl.t=ac.currentTime;play(zs[Math.floor(rnd(0,zs.length))],.5,rnd(.9,1.1));return}
   try{const t=ac.currentTime,o=ac.createOscillator(),l=ac.createOscillator(),lg=ac.createGain(),f=ac.createBiquadFilter(),g=ac.createGain(),b=rnd(60,95),d=rnd(.7,1.1);
@@ -461,6 +463,7 @@ function update(dt){
     if(w.beam||!play('shot',w.rate<.12?.3:.55,[1,1.05,.65,1.35,.85,.8][P.w]*rnd(.96,1.04)))snd(w.f,.09,w.beam?'sawtooth':'square',.04);P.flashT=.05}
   if(P.flashT>0)P.flashT-=dt;
 
+  for(const p of pumpkins){if(!p.a){if((p.t-=dt)<=0){p.a=1;p.g=0}}else if(p.g<1)p.g=Math.min(1,p.g+dt/3)}
   // рычание, пока рядом есть зомби
   growlT-=dt;if(enemies.length&&growlT<=0){growl();growlT=rnd(2.2,4.5)}
   // waves
@@ -468,8 +471,8 @@ function update(dt){
   else if(!enemies.length){waveT-=dt;if(waveT<=0){wave++;toSpawn=Math.round((5+wave*4)*D.cnt);waveT=3;say('Волна '+wave);snd(220,.4,'sawtooth',.05,2)}}
 
   // bullets
-  for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.l-=dt;if(inWall(b.x,b.y)){b.l=0;continue}
-    if(b.y<GARD.y+GARD.h+20&&b.y>GARD.y-20){for(const p of pumpkins)if(p.a&&(b.x-p.x)**2+(b.y-p.y)**2<(p.r+2)**2){pop(p);b.l=0;break}if(b.l<=0)continue}
+  for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.l-=dt;if(inWall(b.x,b.y)){b.l=0;if(b.x>CAR.x&&b.x<CAR.x+CAR.w&&b.y>CAR.y&&b.y<CAR.y+CAR.h){for(let i=0;i<4;i++)parts.push({x:b.x-b.vx*.014,y:b.y-b.vy*.014,vx:rnd(-170,170),vy:rnd(-170,170),l:rnd(.08,.22),c:'#ffe08a'});snd(1500,.05,'square',.03,.6)}continue}
+    if(b.y<GARD.y+GARD.h+20&&b.y>GARD.y-20){for(const p of pumpkins)if(p.a&&!(p.g<.6)&&(b.x-p.x)**2+(b.y-p.y)**2<(p.r+2)**2){pop(p);b.l=0;break}if(b.l<=0)continue}
     for(const e of enemies){if(e.hp>0&&(b.x-e.x)**2+(b.y-e.y)**2<(e.r+3)**2){e.hp-=b.d;e.flash=.08;b.l=0;e.x+=b.vx*.006;e.y+=b.vy*.006;splat(e.x,e.y,2,'#8e1418');
       if(e.hp<=0)kill(e);break}}}
   bullets=bullets.filter(b=>b.l>0);
@@ -514,7 +517,7 @@ function draw(t){const day=state=='cut';
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#070906';ctx.fillRect(0,0,vw,vh);
   ctx.setTransform(dpr*zoom,0,0,dpr*zoom,-(cam.x+Math.sin(t*1.3)*D.sway)*dpr*zoom,-(cam.y+Math.cos(t*.9)*D.sway)*dpr*zoom);
   ctx.drawImage(day&&dayCv?dayCv:decal,0,0);
-  for(const p of pumpkins){if(!p.a)continue;const r=p.r;ctx.fillStyle='#b8560c';ctx.beginPath();ctx.arc(p.x,p.y,r,0,TAU);ctx.fill();ctx.fillStyle='#e8760f';ctx.beginPath();ctx.ellipse(p.x,p.y,r*.62,r*.92,0,0,TAU);ctx.fill();
+  for(const p of pumpkins){if(!p.a)continue;const r=p.r*(p.g==null?1:p.g);if(r<1)continue;ctx.fillStyle='#b8560c';ctx.beginPath();ctx.arc(p.x,p.y,r,0,TAU);ctx.fill();ctx.fillStyle='#e8760f';ctx.beginPath();ctx.ellipse(p.x,p.y,r*.62,r*.92,0,0,TAU);ctx.fill();
     ctx.fillStyle='#ff9a2e';ctx.beginPath();ctx.ellipse(p.x,p.y,r*.26,r*.86,0,0,TAU);ctx.fill();ctx.fillStyle='#3d5a22';ctx.beginPath();ctx.arc(p.x,p.y,2.6,0,TAU);ctx.fill()}
   ctx.strokeStyle='#2a2f3a';ctx.lineWidth=8;ctx.strokeRect(0,0,W,H);
   for(const r of walls){if(r.k==3){ctx.fillStyle='rgba(150,205,215,.28)';ctx.fillRect(r.x,r.y,r.w,r.h);ctx.strokeStyle='#9fc9cf';ctx.lineWidth=1.5;ctx.strokeRect(r.x,r.y,r.w,r.h)}
@@ -595,14 +598,14 @@ function draw(t){const day=state=='cut';
 
   // HUD
   if(state=='intro')return;
-  ctx.setTransform(dpr,0,0,dpr,0,TGTOP*dpr);
+  ctx.setTransform(dpr,0,0,dpr,SL*dpr,TGTOP*dpr);
   if(P.hurt>0){ctx.fillStyle='rgba(194,36,43,'+P.hurt+')';ctx.fillRect(0,0,vw,vh)}
   ctx.font='16px "Russo One","Arial Black",sans-serif';ctx.textBaseline='top';
   ctx.fillStyle='#171c15';ctx.fillRect(16,16,160,16);ctx.fillStyle=P.hp>35?'#8fd14a':'#c2242b';ctx.fillRect(16,16,160*Math.max(0,P.hp)/100,16);
   ctx.strokeStyle='#dfe6d6';ctx.lineWidth=2;ctx.strokeRect(16,16,160,16);
   {const ab=CHARS[ch].ab;if(ab){ctx.fillStyle='#171c15';ctx.fillRect(16,35,160,5);ctx.fillStyle=P.ab>0?'#7ee6ff':(P.ch>=100&&Math.floor(t*4)%2?'#fff':'#ff8a1e');ctx.fillRect(16,35,160*(P.ab>0?P.ab/ab.d:P.ch/100),5)}}
   ctx.fillStyle='#dfe6d6';ctx.textAlign='left';
-  ctx.textAlign='right';ctx.fillText('Очки '+cash,vw-16,16);ctx.fillStyle='#ff8a1e';ctx.fillText('Волна '+wave+'  ·  врагов '+(enemies.length+toSpawn),vw-16,40);
+  ctx.textAlign='right';ctx.fillText('Очки '+cash,vw-16-SL-SR,16);ctx.fillStyle='#ff8a1e';ctx.fillText('Волна '+wave+'  ·  врагов '+(enemies.length+toSpawn),vw-16-SL-SR,40);
   if(msgT>0){ctx.globalAlpha=Math.min(1,msgT);ctx.textAlign='center';ctx.font='30px "Russo One","Arial Black",sans-serif';ctx.fillStyle='#ff8a1e';ctx.fillText(msg,vw/2,vh*.2);ctx.globalAlpha=1}
   ctx.setTransform(dpr,0,0,dpr,0,0);
   for(const k in sticks){const s=sticks[k];if(!s)continue;ctx.strokeStyle='rgba(223,230,214,.35)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(s.ox,s.oy,50,0,TAU);ctx.stroke();
