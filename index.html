@@ -635,12 +635,15 @@ let scr='load',sel=0;const pg=$('pv').getContext('2d');
 function setSel(i){sel=(i+CHARS.length)%CHARS.length;$('cname').textContent=CHARS[sel].name;$('cdesc').textContent=CHARS[sel].desc+' ('+(sel+1)+' из '+CHARS.length+')';
   const lk=!!CHARS[sel].locked,cb=$('choose');cb.disabled=lk;cb.textContent=lk?'Ещё не приехал':'Выбрать'}
 setSel(0);
+/* картинки героев готовим заранее, чтобы при листании не мелькала заглушка */
+CHARS.forEach(c=>{if(c.art){c.im=new Image();c.im.src=c.art;if(c.im.decode)c.im.decode().catch(()=>{})}});
 $('prev').onclick=()=>setSel(sel-1);$('next').onclick=()=>setSel(sel+1);$('choose').onclick=()=>{if(CHARS[sel].locked)return;ch=sel;show('diff')};
 addEventListener('keydown',e=>{if(scr!='chars')return;if(e.code=='ArrowLeft')setSel(sel-1);if(e.code=='ArrowRight')setSel(sel+1)});
 function drawPreview(t){const c=CHARS[sel],g=pg,skin='#e0b08a';g.setTransform(2,0,0,2,0,0);g.clearRect(0,0,260,300);
   if(c.art&&!c.im){c.im=new Image();c.im.src=c.art}
   if(c.im&&c.im.complete&&c.im.naturalWidth){const s=1.04+Math.sin(t*1.2)*.014;g.save();g.translate(130,150+Math.sin(t*1.2)*2);g.scale(s,s);g.drawImage(c.im,-130,-150,260,300);g.restore();
     g.strokeStyle='rgba(180,195,235,.25)';g.lineWidth=1;g.beginPath();for(let i=0;i<22;i++){const x=((i*97.3+t*90)%300)-20,y=((i*131.7+t*420)%330)-15;g.moveTo(x,y);g.lineTo(x-3,y+14)}g.stroke();return}
+  if(c.art)return; // картинка ещё не готова: пустая рамка вместо нарисованной заглушки
   let gr=g.createRadialGradient(130,255,10,130,255,150);gr.addColorStop(0,'rgba(255,138,30,.28)');gr.addColorStop(1,'rgba(255,138,30,0)');g.fillStyle=gr;g.fillRect(0,100,260,200);
   g.fillStyle='rgba(0,0,0,.55)';g.beginPath();g.ellipse(130,268,100,11,0,0,TAU);g.fill();
   const mx=c.dog?100:130,b=Math.sin(t*2)*2,sw=Math.sin(t)*1.5;
