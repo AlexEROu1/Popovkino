@@ -258,11 +258,21 @@ let sg=null;
 /* звуки лежат отдельным блоком в самом конце страницы, чтобы игра запускалась, не дожидаясь их загрузки */
 let SND=null;const BUF={};
 /* своя музыка героя: в игре звучит вместо общей, в меню возвращается общая */
+/* длинные треки не распаковываем в память целиком (на телефоне её не хватает и звук пропадает), а проигрываем потоком */
+const LONG=['music','lexa','summer','tymoya','bed'],MEL={};
+function trk(k,dest,v,loop){if(!ac)return null;const M=MEL[k];
+  if(M){try{M.g.disconnect()}catch(e){}M.g.connect(dest);M.g.gain.cancelScheduledValues(ac.currentTime);M.g.gain.value=v;M.a.loop=!!loop;try{M.a.currentTime=0}catch(e){}M.on=1;const tok=M.tok=(M.tok||0)+1,pr=M.a.play();if(pr)pr.catch(()=>{});
+    return{g:M.g,s:{start(){},stop(at){setTimeout(()=>{if(M.tok==tok){M.on=0;M.a.pause()}},Math.max(0,((at||ac.currentTime)-ac.currentTime)*1000))}}}}
+  const b=BUF[k];if(!b||b===1)return null;const s=ac.createBufferSource(),g=ac.createGain();s.buffer=b;s.loop=!!loop;g.gain.value=v;s.connect(g);g.connect(dest);s.start();return{s,g}}
+function unlockMEL(){if(ac&&ac.state=='suspended'){try{ac.resume()}catch(e){}}for(const k in MEL){const M=MEL[k];if(M.ul)continue;M.ul=1;const pr=M.a.play();if(pr)pr.then(()=>{if(!M.on)M.a.pause()}).catch(()=>{M.ul=0});else if(!M.on)M.a.pause()}}
+['touchend','click','keydown'].forEach(ev=>addEventListener(ev,unlockMEL,true));
 function heroTrack(on){heroTrack.want=on;const k='lexa';if(!ac||!mg||!mA)return;if(hero){try{hero.g.gain.setTargetAtTime(0,ac.currentTime,.25);hero.s.stop(ac.currentTime+1.5)}catch(e){}hero=null}
-  if(on&&k&&BUF[k]){const s=ac.createBufferSource(),g=ac.createGain();s.buffer=BUF[k];s.loop=true;g.gain.value=0;g.gain.setTargetAtTime(1,ac.currentTime,.4);s.connect(g);g.connect(mg);s.start();hero={s,g};mA.gain.setTargetAtTime(0,ac.currentTime,.25)}
+  const h=on&&k&&BUF[k]?trk(k,mg,0,true):null;if(h){h.g.gain.setTargetAtTime(1,ac.currentTime,.4);hero=h;mA.gain.setTargetAtTime(0,ac.currentTime,.25)}
   else mA.gain.setTargetAtTime(1,ac.currentTime,.4)}
 function loadAudio(){if(!ac||!SND||loadAudio.done)return;loadAudio.done=1;
   for(const k in SND){try{const s=atob(SND[k]),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);
+    if(LONG.includes(k)){const a=new Audio(URL.createObjectURL(new Blob([u],{type:'audio/mpeg'})));a.preload='auto';a.loop=true;const g=ac.createGain();g.gain.value=0;ac.createMediaElementSource(a).connect(g);MEL[k]={a,g};BUF[k]=1;
+      if(k=='music'){mg=ac.createGain();mg.gain.value=opt.sound?.45:0;mg.connect(out());mA=ac.createGain();mA.connect(mg);trk('music',mA,1,true);if(heroTrack.want)heroTrack(true)}continue}
     ac.decodeAudioData(u.buffer,b=>{BUF[k]=b;if(k=='steps'){sg=ac.createGain();sg.gain.value=0;sg.connect(out());const m=ac.createBufferSource();m.buffer=b;m.loop=true;m.connect(sg);m.start()}if(k=='music'){mg=ac.createGain();mg.gain.value=opt.sound?.45:0;mg.connect(out());mA=ac.createGain();mA.connect(mg);const m=ac.createBufferSource();m.buffer=b;m.loop=true;m.connect(mA);m.start();if(heroTrack.want)heroTrack(true)}},()=>{})}catch(e){}}}
 function play(k,v=.6,rate=1){if(!ac||!opt.sound||!BUF[k])return false;try{const s=ac.createBufferSource(),g=ac.createGain();s.buffer=BUF[k];s.playbackRate.value=rate;g.gain.value=v;s.connect(g);g.connect(out());s.start()}catch(e){}return true}
 const opt={sound:true,auto:true};
@@ -856,7 +866,7 @@ function startCut(){heroTrack(false);reset();mkDay();
 /* рассказчик: голос в полную силу, под ним тихая музыка; игровая музыка на это время умолкает */
 function narrate(done){if(!ac||!opt.sound||!BUF.narr||!cut){done();return}
   const t=ac.currentTime,mk=(k,v)=>{const s=ac.createBufferSource(),g=ac.createGain();s.buffer=BUF[k];g.gain.value=v;s.connect(g);g.connect(out());return{s,g}};
-  const v=mk('narr',1),b=BUF.bed?mk('bed',0):null;let fin=false;
+  const v=mk('narr',1),b=BUF.bed?trk('bed',out(),0,false):null;let fin=false;
   /* картинки под голос диктора: плавная смена и медленный наезд */
   const sl=$('slides'),ims=[...sl.querySelectorAll('img')],tm=[],showS=i=>{ims.forEach((m,j)=>m.classList.toggle('on',j==i));ims[i].classList.add('go')};
   ims.forEach(m=>m.className='');sl.hidden=false;requestAnimationFrame(()=>requestAnimationFrame(()=>sl.style.opacity=1));
@@ -869,7 +879,7 @@ function narrate(done){if(!ac||!opt.sound||!BUF.narr||!cut){done();return}
   if(b){b.g.gain.setTargetAtTime(.32,t,.6);b.s.start(t)}
   v.s.onended=finish;v.s.start(t+.9);cut.nar={stop:finish};$('skip').hidden=false}
 /* музыка вступления: одна дорожка за раз, смена с быстрым затуханием */
-function cutMusic(k,loop,v=.55){stopCutMusic(.12);if(!ac||!cut||!BUF[k])return;try{const s=ac.createBufferSource(),g=ac.createGain();s.buffer=BUF[k];s.loop=!!loop;g.gain.value=opt.sound?v:0;s.connect(g);g.connect(out());s.start();cut.mus={s,g}}catch(e){}}
+function cutMusic(k,loop,v=.55){stopCutMusic(.12);if(!ac||!cut||!BUF[k])return;try{const h=trk(k,out(),opt.sound?v:0,loop);if(h)cut.mus=h}catch(e){}}
 function stopCutMusic(tc){if(!cut||!cut.mus)return;const m=cut.mus;cut.mus=null;try{m.g.gain.setTargetAtTime(0,ac.currentTime,tc);m.s.stop(ac.currentTime+tc*6+.2)}catch(e){}}
 function startEng(){if(!ac||!BUF.engine||!cut)return;try{const s=ac.createBufferSource(),g=ac.createGain();s.buffer=BUF.engine;s.loop=true;g.gain.value=opt.sound?.22:0;s.connect(g);g.connect(out());s.start();cut.eng={s,g}}catch(e){}}
 function stopEng(){if(!cut||!cut.eng)return;const e=cut.eng;cut.eng=null;try{e.g.gain.setTargetAtTime(0,ac.currentTime,.3);e.s.stop(ac.currentTime+1.5)}catch(x){}}
@@ -965,7 +975,7 @@ function bark(){if(ac&&BUF.bark){if(ac.currentTime-(bark.t||0)<.28)return;bark.t
   snd(520,.09,'sawtooth',.1,.45);setTimeout(()=>snd(470,.11,'sawtooth',.1,.4),170)}
 function startIntro(){heroTrack(true);if(mg&&ac)mg.gain.setTargetAtTime(opt.sound?.45:0,ac.currentTime,.8);const L=CHARS[ch].night;P.lie=!!CHARS[ch].lie;if(CHARS[ch].sa!=null)P.a=CHARS[ch].sa;camTo(P.x,P.y);if(!L){begin();return}
   intro={L,line:-1};state='intro';
-  if(CHARS[ch].pmus&&ac&&BUF[CHARS[ch].pmus]){if(mg)mg.gain.setTargetAtTime(0,ac.currentTime,.05);try{const s=ac.createBufferSource(),g=ac.createGain();s.buffer=BUF[CHARS[ch].pmus];s.loop=true;g.gain.value=opt.sound?.9:0;s.connect(g);g.connect(out());s.start();intro.mus={s,g}}catch(e){}}setTimeout(()=>{if(intro&&intro.line<0){$('skip').hidden=false;introLine(0)}},2100)}
+  if(CHARS[ch].pmus&&ac&&BUF[CHARS[ch].pmus]){if(mg)mg.gain.setTargetAtTime(0,ac.currentTime,.05);try{const h=trk(CHARS[ch].pmus,out(),opt.sound?.9:0,true);if(h)intro.mus=h}catch(e){}}setTimeout(()=>{if(intro&&intro.line<0){$('skip').hidden=false;introLine(0)}},2100)}
 function introMusOff(){if(intro&&intro.mus){const m=intro.mus;intro.mus=null;try{m.g.gain.setTargetAtTime(0,ac.currentTime,.03);m.s.stop(ac.currentTime+.3)}catch(e){}}}
 function pathTo(x0,y0,x1,y1){const s=Math.floor(y0/GS)*GN+Math.floor(x0/GS),g=Math.floor(y1/GS)*GN+Math.floor(x1/GS),pr=new Int32Array(GN*GN).fill(-1),q=[s];pr[s]=s;
   for(let h=0;h<q.length;h++){const c=q[h];if(c==g)break;const cx=c%GN,cy=(c/GN)|0;for(const[ax,ay]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+ax,ny=cy+ay;if(nx<0||ny<0||nx>=GN||ny>=GN)continue;const n=ny*GN+nx;if(pr[n]>=0||blk[n])continue;pr[n]=c;q.push(n)}}
