@@ -40,6 +40,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--mono);overflow:hidde
 #slides{position:fixed;inset:0;z-index:5;background:#000;overflow:hidden;opacity:0;transition:opacity .8s}
 #slides img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:cover;opacity:0;transition:opacity 1.5s}
 #slides img.on{opacity:1}
+#slides img:nth-child(6),#slides img:nth-child(7){transition:none}
 #slides img.go:nth-child(1){animation:kb1 16s linear forwards}#slides img.go:nth-child(2){animation:kb2 16s linear forwards}#slides img.go:nth-child(3){animation:kb3 16s linear forwards}#slides img.go:nth-child(4){animation:kb2 16s linear forwards}#slides img.go:nth-child(5){animation:kb1 16s linear forwards}#slides img.go:nth-child(6){animation:kb3 16s linear forwards}#slides img.go:nth-child(7){animation:kb1 50s linear forwards}
 #slides::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.6) 100%)}
 @keyframes kb1{from{transform:scale(1.04)}to{transform:scale(1.3) translate(0,-3%)}}
