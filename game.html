@@ -343,13 +343,13 @@ function snd(f,d,type='square',v=.05,slide=.3){if(!ac||!opt.sound)return;try{con
 const decal=document.createElement('canvas');decal.width=W;decal.height=H;let dx=decal.getContext('2d');
 const WEAPONS=[
  {name:'Пистолет',s:'Пистолет',rate:.28,dmg:26,spread:.06,n:1,mag:12,rel:1,f:520,cost:0,pack:0,len:16},
- {name:'Двойной пистолет',s:'2 пистолета',rate:.14,dmg:24,spread:.08,n:1,mag:24,rel:1.4,f:560,cost:150,pack:96,len:16,dual:1},
+ {name:'Двойной пистолет',s:'2 пистолета',rate:.14,dmg:22,spread:.08,n:1,mag:24,rel:1.4,f:560,cost:150,pack:96,len:16,dual:1},
  {name:'Дробовик',s:'Дробовик',rate:.75,dmg:36,spread:.24,n:7,mag:6,rel:1.6,f:180,cost:300,pack:30,len:22},
- {name:'УЗИ',s:'УЗИ',rate:.075,dmg:13,spread:.14,n:1,mag:32,rel:1.2,f:640,cost:450,pack:160,len:18},
- {name:'АК-47',s:'АК-47',rate:.11,dmg:24,spread:.08,n:1,mag:30,rel:1.5,f:330,cost:700,pack:150,len:26},
- {name:'Пулемёт',s:'Пулемёт',rate:.07,dmg:22,spread:.11,n:1,mag:100,rel:2.6,f:260,cost:1100,pack:300,len:30},
- {name:'Лазерная пушка',s:'Лазер',rate:.5,dmg:90,spread:0,n:1,mag:8,rel:1.8,f:1200,cost:1600,pack:40,len:28,beam:1}];
-const UP={l:['Лазерный прицел',150,'Красный луч, огонь открывается с большего расстояния'],m:['Увеличенная обойма',200,'В магазине в полтора раза больше патронов'],s:['Приклад',200,'Разброс вдвое меньше']};
+ {name:'УЗИ',s:'УЗИ',rate:.075,dmg:14,spread:.14,n:1,mag:32,rel:1.2,f:640,cost:450,pack:160,len:18},
+ {name:'АК-47',s:'АК-47',rate:.11,dmg:27,spread:.08,n:1,mag:30,rel:1.5,f:330,cost:700,pack:150,len:26},
+ {name:'Пулемёт',s:'Пулемёт',rate:.07,dmg:24,spread:.11,n:1,mag:100,rel:2.6,f:260,cost:1100,pack:300,len:30},
+ {name:'Лазерная пушка',s:'Лазер',rate:.5,dmg:200,spread:0,n:1,mag:8,rel:1.8,f:1200,cost:1600,pack:40,len:28,beam:1}];
+const UP={l:['Лазерный прицел',150,'Красный луч, огонь открывается с большего расстояния'],m:['Увеличенная обойма',200,'В магазине в полтора раза больше патронов'],s:['Быстрая перезарядка',200,'Перезарядка вдвое быстрее']};
 let P,enemies,bullets,spits,drops,parts,walls,wave,score,toSpawn,spawnT,waveT,msg,msgT,best=0,cash=0,own=[1],near=null,mag=[],res=[],up=[],uw=0;
 const CX=W/2,CY=H/2,HW=900,HH=520,HX=CX-HW/2,HY=CY-HH/2,T=14,SW=210,SH=380,SX=90,SY=1480,GX=1548,GY=265,GW=210,GH=405;
 const CAR={x:412,y:1662,w:240,h:120},GARD={x:741,y:289,w:577,h:376},GRAV={x:132,y:57,w:150,h:860};
@@ -430,7 +430,7 @@ function buy(){if(state!='play'||!near)return;if(near.t=='bench'){openUpg();retu
   else if(near.t=='arm'){P.arm=Math.min(100,(P.arm||0)+20);say('Броня '+P.arm+'%')}
   else if(near.t=='ammo'){for(let i=1;i<7;i++)if(own[i])res[i]+=WEAPONS[i].pack;say('Патроны пополнены')}
   else{const i=near.i;res[i]+=WEAPONS[i].pack;if(own[i])say('Патроны: '+WEAPONS[i].name);else{own[i]=1;mag[i]=magSize(i);P.w=i;P.rel=0;say(WEAPONS[i].name+': куплено')}}}
-function reload(){if(P.rel>0||mag[P.w]>=magSize(P.w))return;if(res[P.w]<=0){if(mag[P.w]<=0&&P.w){P.w=0;say('Патроны кончились')}return}P.rel=WEAPONS[P.w].rel;play(P.w==2&&BUF.sgrel?'sgrel':'reload',.7)||snd(300,.08,'triangle',.04,1.4)}
+function reload(){if(P.rel>0||mag[P.w]>=magSize(P.w))return;if(res[P.w]<=0){if(mag[P.w]<=0&&P.w){P.w=0;say('Патроны кончились')}return}P.rel=WEAPONS[P.w].rel*(up[P.w].s?.5:1);play(P.w==2&&BUF.sgrel?'sgrel':'reload',.7)||snd(300,.08,'triangle',.04,1.4)}
 /* путь врага: вокруг дома и через дверь */
 function goal(e){if(e.t==2&&d2(e,P)<300*300)return P;
   const cx=clamp(Math.floor(e.x/GS),0,GN-1),cy=clamp(Math.floor(e.y/GS),0,GN-1);if(fd[cy*GN+cx]<=1)return P;
@@ -512,7 +512,7 @@ function spawn(){
   else if(wave>=2&&q<.38)e={t:1,hp:225+wave*15,spd:72,r:23,dmg:20,cd:0};
   else e={t:0,hp:60+wave*3,spd:Math.min(190,118+wave*5),r:13,dmg:8,cd:0};
   if(Math.random()<.22)growl();
-  e.hp*=D.hp;e.spd*=D.spd;e.x=x;e.y=y;e.a=0;e.ph=rnd(0,TAU);e.flash=0;enemies.push(e);
+  e.hp*=D.hp;e.max=e.hp;e.spd*=D.spd;e.x=x;e.y=y;e.a=0;e.ph=rnd(0,TAU);e.flash=0;enemies.push(e);
 }
 function splat(x,y,n,col){dx.fillStyle=col;for(let i=0;i<n;i++){dx.globalAlpha=rnd(.25,.6);dx.beginPath();dx.arc(x+rnd(-18,18),y+rnd(-18,18),rnd(2,9),0,TAU);dx.fill()}dx.globalAlpha=1}
 function say(t){msg=t;msgT=2.2}
@@ -593,10 +593,10 @@ function update(dt){if(quake)quakeTick(dt);if(state!='play')return;
     else{P.at=.17;const a=P.a+rnd(-.1,.1);bullets.push({k:2,x:P.x+c0*18,y:P.y+s0*18,vx:Math.cos(a)*520,vy:Math.sin(a)*520,d:60,l:1.1});snd(260,.1,'sine',.05,1.8)}}}
   if(P.rel>0){P.rel-=dt;if(P.rel<=0){const n=Math.min(magSize(P.w)-mag[P.w],res[P.w]);mag[P.w]+=n;res[P.w]-=n}}
   else if(mag[P.w]<=0)reload();
-  else if(fire&&P.cd<=0){const w=WEAPONS[P.w],sp=w.spread*(up[P.w].s?.45:1);P.cd=w.rate;if(!mgOn)mag[P.w]--;P.side=-P.side;
+  else if(fire&&P.cd<=0){const w=WEAPONS[P.w],sp=w.spread;P.cd=w.rate;if(!mgOn)mag[P.w]--;P.side=-P.side;
     const ox=w.dual?-sa*5*P.side:0,oy=w.dual?ca*5*P.side:0;
     if(w.beam){P.beamT=.14;let B=22;while(B<560&&!inWall(P.x+ca*B,P.y+sa*B))B+=8;P.beamL=B;
-      for(const e of enemies){const rx=e.x-P.x,ry=e.y-P.y,pr=rx*ca+ry*sa;if(e.hp>0&&pr>0&&pr<B+e.r&&Math.abs(ry*ca-rx*sa)<e.r+7){e.hp-=(e.t==0&&D!==DIFF[2])?1e6:w.dmg;e.flash=.1;if(e.hp<=0)kill(e)}}}
+      for(const e of enemies){const rx=e.x-P.x,ry=e.y-P.y,pr=rx*ca+ry*sa;if(e.hp>0&&pr>0&&pr<B+e.r&&Math.abs(ry*ca-rx*sa)<e.r+7){e.hp-=e.boss?w.dmg:e.max/[1,3,2][e.t]+1;e.flash=.1;if(e.hp<=0)kill(e)}}}
     else for(let i=0;i<w.n;i++){const a=P.a+rnd(-sp,sp),s=rnd(850,980);bullets.push({x:P.x+ca*22+ox,y:P.y+sa*22+oy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,d:w.dmg,l:P.w==2?.27:.8,l0:.27,sg:P.w==2})}
     if(w.beam||!play('shot',w.rate<.12?.3:.55,[1,1.05,.65,1.35,.85,.8][P.w]*rnd(.96,1.04)))snd(w.f,.09,w.beam?'sawtooth':'square',.04);P.flashT=.05}
   if(P.flashT>0)P.flashT-=dt;
@@ -722,7 +722,7 @@ function finale(e){const m=CHARS[ch].male,c=CHARS[ch],hn=c.name.split(' ')[0],ch
     {s:'',hide:1,auto:2300,on:()=>{BAR.fl=performance.now()}},
     {s:'',hide:1,auto:1300,on:()=>{if(mus){try{mus.g.gain.setTargetAtTime(0,ac.currentTime,.03);mus.s.stop(ac.currentTime+.3)}catch(x){}mus=null}card('',0,1)}},
     Mi('Какого чёрта?',{e:P,on:()=>{BAR=null;enemies=[];ch=8;P.x=CX;P.y=AB+70;P.a=Math.PI/2;P.hp=100;const keep=pumpkins;paintGround();paintShed();pumpkins=keep;cardOff()}}),
-    {s:'Приветствую, мой дорогой друг. Не желаете сыграть со мной в одну игру?',on:()=>{$('ghost').hidden=false}},Mi('Ахереть, настоящий призрак!',{e:P}),
+    {s:'Приветствую, мой дорогой друг. Не желаете сыграть со мной в одну игру?',on:()=>{$('ghost').hidden=false}},Mi('Ахереть, настоящий призрак!',{e:P}),{s:'',hide:1,auto:2600,on:()=>{$('ghost').hidden=true;const f=$('fade');f.classList.remove('big','poster');f.textContent='';f.style.transition='none';f.style.background='#fff';f.style.opacity=0;f.hidden=false;requestAnimationFrame(()=>requestAnimationFrame(()=>{f.style.transition='opacity 2s linear';f.style.opacity=1}))}},
     {s:'',hide:1,auto:7000+34000+5000,on:()=>{$('ghost').hidden=true;mus=trk('credits',out(),opt.sound?.9:0,false);cardPoster(7000,34000)}}],end,1);
   $('wbtn').hidden=$('pbtn').hidden=$('fire').hidden=$('abil').hidden=$('buy').hidden=true}
 function draw(t){if(BAR){drawBar();return}if(VOID){drawVoid();return}const nc=state=='cut'&&cut&&cut.night,day=state=='cut'&&!nc;
@@ -1120,7 +1120,7 @@ function tutList(){const T=touchDev,w1=SHOP.find(s=>s.t=='w'&&s.i==1),w2=SHOP.fi
     {s:'Тут ты можешь купить аптечку, патроны и бронежилет.',w:{x:(md.x+am.x)/2,y:md.y-34,ww:Math.abs(am.x-md.x)+110,hh:170}},
     {s:'А тут ты можешь улучшить своё оружие.',w:{x:bn.x,y:bn.y,ww:120,hh:90}},
     {s:'Итак, правила такие: тебе надо пережить 10 атак, и, может, я тебя отпущу к друзьям. А если нет, то ты останешься тут навсегда! Ха-ха, удачи!'}]}
-function night2(){const keep=pumpkins;paintGround();paintShed();pumpkins=keep;parts=[];drops=[];const m=CHARS[ch].male;
+function night2(){P.x=CX;P.y=CY;P.dog.x=CX-40;P.dog.y=CY+20;camTo(P.x,P.y);const keep=pumpkins;paintGround();paintShed();pumpkins=keep;parts=[];drops=[];const m=CHARS[ch].male;
   if(wave>=20){const N=['камень','ножницы','бумага'],fr=[0,1,2,3,4,5,6,7].filter(i=>i!=ch).sort(()=>Math.random()-.5),f1=fr[0],f2=fr[1];let st=0;
     const strip=()=>{st=1;own=[1,0,0,0,0,0,0];res=[Infinity,0,0,0,0,0,0];up=WEAPONS.map(()=>({l:0,m:0,s:0}));mag=WEAPONS.map(w=>w.mag);P.w=0;P.rel=0;P.arm=0;cash=0},
       vOn=(col,f)=>{tut.vp=1;whiteThen(()=>{if(!tut)return;VOID={col,f,t0:0,free:0};$('wbtn').hidden=$('pbtn').hidden=$('fire').hidden=$('abil').hidden=$('buy').hidden=true})},vFree=()=>{if(VOID)VOID.free=performance.now()},win=()=>tutStep(tut.i+1),
@@ -1189,7 +1189,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||
 function show(id){$('buy').hidden=true;$('wbtn').hidden=true;$('pbtn').hidden=true;$('fire').hidden=$('abil').hidden=true;fireHeld=false;scr=id;document.querySelectorAll('.screen').forEach(s=>s.hidden=s.id!==id)}
 function go(){heroTrack(true);reset();show(null);hud();state='play'}
 $('start').onclick=()=>{stat('open');try{ac=ac||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}loadAudio();goLandscape();show('menu')};
-$('again').onclick=()=>{const c=ck;go();if(c){own=[...c.own];res=[...c.res];mag=[...c.mag];up=c.up.map(u=>({...u}));cash=c.cash;score=c.score;P.w=c.pw;P.arm=c.arm||0;wave=c.w;waveT=3;say('Снова с волны '+(c.w+1))}};
+$('again').onclick=()=>{const c=ck;go();if(c){own=[...c.own];res=[...c.res];mag=[...c.mag];up=c.up.map(u=>({...u}));cash=c.cash;score=c.score;P.w=c.pw;P.arm=c.arm||0;P.x=CX;P.y=CY;P.dog.x=CX-40;P.dog.y=CY+20;wave=c.w;waveT=3;say('Снова с волны '+(c.w+1))}};
 function labels(){$('optSound').textContent='Звук: '+(opt.sound?'вкл':'выкл');$('optAuto').textContent='Автонаведение: '+(opt.auto?'вкл':'выкл')}
 labels();
 $('optSound').onclick=()=>{opt.sound=!opt.sound;if(mg)mg.gain.value=opt.sound?.45:0;labels()};$('optAuto').onclick=()=>{opt.auto=!opt.auto;labels()};
