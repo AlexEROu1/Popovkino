@@ -659,11 +659,14 @@ function hurt(n){if(P.ab>0&&CHARS[ch].ab&&CHARS[ch].ab.t=='rage')return;{let dm=
 /* ---------- draw ---------- */
 const qs=()=>quake?(Math.random()-.5)*2*Math.min(11,2+quake.t*4):0;
 /* другое измерение призрака: пустота, герой и друг за решёткой */
-function drawVoid(){const V=VOID,now=performance.now(),K=Math.min(vw,vh)/150,gy=vh*.66;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=V.col;ctx.fillRect(0,0,vw,vh);
+function whiteThen(fn){const f=$('fade');f.classList.remove('big','poster');f.textContent='';f.style.transition='none';f.style.background='#fff';f.style.opacity=0;f.hidden=false;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{f.style.transition='opacity .9s linear';f.style.opacity=1}));
+  setTimeout(()=>{fn();f.style.transition='opacity 1.1s linear';f.style.opacity=0;setTimeout(()=>{if(f.style.opacity=='0'){f.hidden=true;f.style.background='';f.style.transition=''}},1200)},1000)}
+function drawVoid(){const V=VOID,now=performance.now(),K=Math.min(vw,vh)/175,gy=vh*.82;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=V.col;ctx.fillRect(0,0,vw,vh);
   const fig=(x,a,c)=>{ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(x,gy+15*K,16*K,5*K,0,0,TAU);ctx.fill();ctx.save();ctx.translate(x,gy);ctx.scale(K,K);drawFig(0,0,a,0,c);ctx.restore()};
   const px=vw*.3,fx=vw*.7,up=V.free?Math.min(1,(now-V.free)/700):0;fig(px,0,CHARS[ch]);fig(fx,Math.PI,CHARS[V.f]);
   ctx.save();ctx.translate(0,-up*vh*.7);ctx.strokeStyle='#17181c';ctx.lineCap='round';ctx.lineWidth=3*K;const w=30*K,h=30*K;ctx.strokeRect(fx-w,gy-h,w*2,h*2);ctx.lineWidth=2.2*K;ctx.beginPath();for(let i=1;i<6;i++){const x=fx-w+i*w/3;ctx.moveTo(x,gy-h);ctx.lineTo(x,gy+h)}ctx.stroke();ctx.restore();
-  ctx.font=(7*K)+'px "Russo One","Arial Black",sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(20,22,26,.75)';ctx.fillText(CHARS[V.f].name.split(' ')[0],fx,gy+34*K);ctx.textAlign='left';
+  ctx.font=(7*K)+'px "Russo One","Arial Black",sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(20,22,26,.75)';ctx.fillText(CHARS[V.f].name.split(' ')[0],fx,gy-36*K);ctx.textAlign='left';
   const a=1-(now-V.t0)/600;if(a>0){ctx.fillStyle='rgba(255,255,255,'+a+')';ctx.fillRect(0,0,vw,vh)}}
 /* ---------- финал: трещины, бар в Японии, Миша, титры ---------- */
 let CRK=null,BAR=null,finTimer=0;
@@ -1111,7 +1114,7 @@ function tutList(){const T=touchDev,w1=SHOP.find(s=>s.t=='w'&&s.i==1),w2=SHOP.fi
 function night2(){const keep=pumpkins;paintGround();paintShed();pumpkins=keep;parts=[];drops=[];const m=CHARS[ch].male;
   if(wave>=20){const N=['камень','ножницы','бумага'],fr=[0,1,2,3,4,5,6,7].filter(i=>i!=ch).sort(()=>Math.random()-.5),f1=fr[0],f2=fr[1];let st=0;
     const strip=()=>{st=1;own=[1,0,0,0,0,0,0];res=[Infinity,0,0,0,0,0,0];up=WEAPONS.map(()=>({l:0,m:0,s:0}));mag=WEAPONS.map(w=>w.mag);P.w=0;P.rel=0;P.arm=0;cash=0},
-      vOn=(col,f)=>{VOID={col,f,t0:performance.now(),free:0};$('wbtn').hidden=$('pbtn').hidden=$('fire').hidden=$('abil').hidden=$('buy').hidden=true},vFree=()=>{if(VOID)VOID.free=performance.now()},win=()=>tutStep(tut.i+1),
+      vOn=(col,f)=>{tut.vp=1;whiteThen(()=>{if(!tut)return;VOID={col,f,t0:0,free:0};$('wbtn').hidden=$('pbtn').hidden=$('fire').hidden=$('abil').hidden=$('buy').hidden=true})},vFree=()=>{if(VOID)VOID.free=performance.now()},win=()=>tutStep(tut.i+1),
       fail=()=>{tut.L.length=tut.i+1;tut.L.push({s:'Пфахаха. Реально '+(m?'повёлся':'повелась')+'. Удачи на первом уровне!'});tut.done=()=>{VOID=null;ck=null;go()};tutStep(tut.i+1)};
     startTut([{s:'Как… Как ты его '+(m?'убил':'убила')+'?'},{s:'Ну ладно, он не особо был мне нужен.'},{s:'А давай сыграем в камень, ножницы, бумага?'},{s:'Если победишь, оставлю всё твоё оружие и очки. Если нет — начнёшь с пистолетом)'},
       {s:'Итак: камень, ножницы, бумага, раз, два, три!',opts:['✊ Камень','✌ Ножницы','✋ Бумага'],pick:k=>{tut.L[tut.i+1].s='У тебя '+N[k]+', у меня '+N[(k+2)%3]+'. Я победил!';tutStep(tut.i+1)}},{s:''},
@@ -1121,7 +1124,7 @@ function night2(){const keep=pumpkins;paintGround();paintShed();pumpkins=keep;pa
       {s:'Ну какой ты неинтересный, весь из себя правильный. Ладно, одного ты '+(m?'спас':'спасла')+'.',on:()=>{cash+=150;vFree()}},
       {s:'Беру двумя руками, сую между ногами.',on:()=>vOn('#a81d27',f2),opts:['Писюн','Дик','Велосипед','Член'],pick:k=>k==2?win():fail()},
       {s:'Ну да, ну да, что ты '+(m?'мог':'могла')+' ещё нажать. '+(CHARS[f2].male?'Свободен.':'Свободна.'),on:()=>{cash+=150;vFree()}},
-      {s:'Раз ты '+(m?'такой умный':'такая умная')+', посмотрим, как ты освободишь остальных.',on:()=>{VOID=null;hud()}}],
+      {s:'Раз ты '+(m?'такой умный':'такая умная')+', посмотрим, как ты освободишь остальных.',on:()=>{tut.vp=0;whiteThen(()=>{VOID=null;if(tut)hud()})}}],
       ()=>{VOID=null;if(!st)strip();saveCk(wave)});return}
   startTut([{s:'Хах, и вот опять мы тут с тобой.'},{s:'А ты '+(m?'думал':'думала')+', что я оставлю тебя с друзьями?)'},{s:'Глупышка, ты '+(m?'убил':'убила')+' только одного моего раба, а у меня их ещё столько для тебя.'},
     {s:'Просто так я тебя отсюда не отпущу.'},{s:'Давай заключим пари: выдержишь ещё 10 волн — я, может, тебе колесо отдам.'},{s:'Хотя смотрю я на тебя и понимаю, что ты не справишься! Ха-ха-ха!'}],()=>saveCk(wave))}
@@ -1137,8 +1140,9 @@ function tutStep(i){if(!tut)return;if(i>=tut.L.length){endTut();return}tut.i=i;c
   else if(S.h=='bar')r={x:SL+10,y:TGTOP+29,w:172,h:17};
   if(r){hl.style.left=r.x+'px';hl.style.top=r.y+'px';hl.style.width=r.w+'px';hl.style.height=r.h+'px';hl.style.borderRadius=r.c?'50%':'14px';hl.hidden=false;
     gh.style.left=clamp(r.x+r.w+8,8,vw-72)+'px';gh.style.top=clamp(r.y+r.h/2-38+(r.y<140?60:0),8,vh-84)+'px'}
-  else{hl.hidden=true;gh.style.left=(vw/2-32)+'px';gh.style.top=(vh*.52)+'px'}
+  else{hl.hidden=true;tut.gc=1}
   $('dlg').classList.toggle('low',!!S.w);{const bx=$('rps');bx.textContent='';if(S.opts)S.opts.forEach((tx,k)=>{const b=document.createElement('button');b.textContent=tx;b.onclick=()=>{if(tut&&tut.L[tut.i]===S)S.pick(k)};bx.append(b)});$('dnext').hidden=!!S.opts;bx.hidden=!S.opts}if(r&&!r.c&&!S.w){gh.style.left=(r.x+20)+'px';gh.style.top=(r.y+r.h+8)+'px'}$('dwho').textContent=S.n||'Призрак';$('dtext').textContent=S.s;if(S.n&&!S.im)im.hidden=true;else{im.src=S.im||GHOST;im.hidden=false}$('dlg').hidden=false;
+  if(tut.gc){tut.gc=0;const db=$('dlg').getBoundingClientRect();gh.style.left=(vw/2-32)+'px';gh.style.top=(VOID||tut.vp?vh*.82-46:Math.min(vh-84,Math.max(vh*.52,db.bottom+8)))+'px'}
   if(S.hide)$('dlg').hidden=true;if(S.auto)setTimeout(()=>{if(tut&&tut.L[tut.i]===S)tutStep(i+1)},S.auto);
   if(S.hide){}else if(S.v=='b')growl();else if(S.v=='m')voice({male:1},S.s);else if(S.v=='f')voice({},S.s);else if(S.v=='p')voice(CHARS[ch],S.s);else snd(620,.3,'sine',.04,1.5)}
 /* перед боем босс и герой перекидываются парой фраз, камера показывает говорящего */
