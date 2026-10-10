@@ -583,7 +583,7 @@ function update(dt){if(quake)quakeTick(dt);if(state!='play')return;
   growlT-=dt;if(enemies.length&&growlT<=0){growl();growlT=rnd(2.2,4.5)}
   // waves
   if(toSpawn>0){spawnT-=dt;if(spawnT<=0){spawn();toSpawn--;spawnT=Math.max(.12,.55-wave*.03)}}
-  else if(!enemies.length){waveT-=dt;if(waveT<=0){wave++;toSpawn=Math.round((5+wave*4)*D.cnt);waveT=3;say('Волна '+wave);if(wave%10==0){toSpawn=Math.round(toSpawn*.5);spawnBoss();say('Волна '+wave+': '+BK[(wave/10-1)%3].name)}snd(220,.4,'sawtooth',.05,2)}}
+  else if(!enemies.length){waveT-=dt;if(waveT<=0){wave++;toSpawn=Math.round((5+wave*4)*D.cnt);waveT=3;say('Волна '+wave);if(wave%10==0){toSpawn=Math.round(toSpawn*.5);spawnBoss();say('Волна '+wave+': '+BK[(wave/10-1)%3].name);bossTalk()}snd(220,.4,'sawtooth',.05,2)}}
 
   // bullets
   for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt;b.l-=dt;if(inWall(b.x,b.y)){b.l=0;const hw=walls.find(r=>b.x>r.x&&b.x<r.x+r.w&&b.y>r.y&&b.y<r.y+r.h);
@@ -1033,8 +1033,8 @@ function night2(){const keep=pumpkins;paintGround();paintShed();pumpkins=keep;pa
 const ULT={dog:'10 секунд Рой сам бросается на ближайших зомби и грызёт их.',spin:'6 секунд крутит лопату вокруг себя: бьёт и отбрасывает всех, кто рядом.',knife:'6 секунд кидает ножи веером. Ножи пробивают зомби насквозь.',voice:'8 секунд кричит. Бьёт как дробовик: вблизи сильно, вдаль не достаёт.',rage:'10 секунд быстро бегает. Зомби её не ранят, а она ранит всех, сквозь кого пробегает.',beer:'Выпивает пиво (+30 здоровья) и 8 секунд стреляет зелёными шарами, которые задевают и соседних зомби.',mg:'Валюша приносит пулемёт: 10 секунд бесконечная очередь, но Андрюша ходит медленно.'};
 {const bx=$('cards');CHARS.forEach(c=>{const d=document.createElement('div');d.className='card';const im=c.art?document.createElement('img'):document.createElement('div');if(c.art){im.src=c.art;im.alt=''}else{im.className='noart';im.textContent='?'}
   const t=document.createElement('div'),b=document.createElement('b'),i=document.createElement('i'),sp=document.createElement('span');b.textContent=c.name;i.textContent=c.locked?'Скоро':c.ab?'Суперсила: «'+c.ab.s+'»':'Суперсила: пока нет';sp.textContent=c.locked?c.desc:c.ab?ULT[c.ab.t]:'Появится позже.';t.append(b,i,sp);d.append(im,t);bx.append(d)})}
-function startTut(L,done){tut={i:-1,L:L||tutList(),f:null,done};state='tut';hud();$('ghost').src=GHOST;$('ghost').hidden=false;$('skip').hidden=false;tutStep(0)}
-function tutStep(i){if(!tut)return;if(i>=tut.L.length){endTut();return}tut.i=i;const S=tut.L[i],hl=$('hl'),gh=$('ghost'),im=$('dimg');let r=null;tut.f=S.w?{x:S.w.x,y:S.w.y}:null;camTo(tut.f?tut.f.x:P.x,tut.f?tut.f.y:P.y);
+function startTut(L,done,ng){tut={i:-1,L:L||tutList(),f:null,done,ng};state='tut';hud();$('ghost').src=GHOST;$('ghost').hidden=!!ng;$('skip').hidden=false;tutStep(0)}
+function tutStep(i){if(!tut)return;if(i>=tut.L.length){endTut();return}tut.i=i;const S=tut.L[i],hl=$('hl'),gh=$('ghost'),im=$('dimg');let r=null;tut.f=S.w?{x:S.w.x,y:S.w.y}:S.e||null;camTo(tut.f?tut.f.x:P.x,tut.f?tut.f.y:P.y);
   if(S.w){const z=zoom;r={x:(S.w.x-cam.x)*z-S.w.ww*z/2,y:(S.w.y-cam.y)*z-S.w.hh*z/2,w:S.w.ww*z,h:S.w.hh*z}}
   else if(S.h=='stick')r={x:SL+30,y:vh-190,w:150,h:150,c:1};
   else if(S.h=='fire'||S.h=='abil'){const b=$(S.h).getBoundingClientRect();r={x:b.left-6,y:b.top-6,w:b.width+12,h:b.height+12,c:1}}
@@ -1043,7 +1043,14 @@ function tutStep(i){if(!tut)return;if(i>=tut.L.length){endTut();return}tut.i=i;c
   if(r){hl.style.left=r.x+'px';hl.style.top=r.y+'px';hl.style.width=r.w+'px';hl.style.height=r.h+'px';hl.style.borderRadius=r.c?'50%':'14px';hl.hidden=false;
     gh.style.left=clamp(r.x+r.w+8,8,vw-72)+'px';gh.style.top=clamp(r.y+r.h/2-38+(r.y<140?60:0),8,vh-84)+'px'}
   else{hl.hidden=true;gh.style.left=(vw/2-32)+'px';gh.style.top=(vh*.52)+'px'}
-  $('dlg').classList.toggle('low',!!S.w);$('dnext').hidden=!!S.rps;$('rps').hidden=!S.rps;if(r&&!r.c&&!S.w){gh.style.left=(r.x+20)+'px';gh.style.top=(r.y+r.h+8)+'px'}$('dwho').textContent='Призрак';$('dtext').textContent=S.s;im.src=GHOST;im.hidden=false;$('dlg').hidden=false;snd(620,.3,'sine',.04,1.5)}
+  $('dlg').classList.toggle('low',!!S.w);$('dnext').hidden=!!S.rps;$('rps').hidden=!S.rps;if(r&&!r.c&&!S.w){gh.style.left=(r.x+20)+'px';gh.style.top=(r.y+r.h+8)+'px'}$('dwho').textContent=S.n||'Призрак';$('dtext').textContent=S.s;if(S.n&&!S.im)im.hidden=true;else{im.src=S.im||GHOST;im.hidden=false}$('dlg').hidden=false;
+  if(S.v=='b')growl();else if(S.v=='p')voice(CHARS[ch],S.s);else snd(620,.3,'sine',.04,1.5)}
+/* перед боем босс и герой перекидываются парой фраз, камера показывает говорящего */
+const BTALK=[[['b','Ах, свежее мясо…'],['p','О боже, оно живое!'],['b','Иди ко мне, мешок с кишками!'],['p','Да пошло оно всё!']],
+  [['b','Чувствую мясной фарш…'],['p','Боже, ты кто ещё такой?'],['b','Тот, кто тебя сейчас съест!']],
+  [['b','Не могу поверить, что ты тут.'],['p','Да вы все тут такие уродливые!'],['b','Да как ты смеешь со мной так разговаривать?'],['p','Так, ладно. С теми разобрались, осталось последнее отродье.'],['b','Жалкий человек, я сделаю из тебя раба!'],['p','Ну тогда погнали!']]];
+function bossTalk(){const e=enemies.find(q=>q.boss);if(!e||wave>30)return;const c=CHARS[ch],bi=e.bk?e.B.src:BOSS.im[0].src;
+  startTut(BTALK[e.bk].map(([w,t])=>w=='b'?{s:t,n:e.name,im:bi,e,v:'b'}:{s:t,n:c.name.split(' ')[0],im:c.art,e:P,v:'p'}),null,1)}
 function endTut(){if(!tut)return;const dn=tut.done;tut=null;if(dn)dn();$('rps').hidden=true;$('dnext').hidden=false;$('hl').hidden=true;$('ghost').hidden=true;$('dlg').hidden=true;$('dlg').classList.remove('low');$('skip').hidden=true;camTo(P.x,P.y);state='play';hud()}
 document.querySelectorAll('#rps button').forEach(b=>b.onclick=()=>{if(!tut||!tut.L[tut.i]||!tut.L[tut.i].rps)return;const N=['камень','ножницы','бумага'],p=+b.dataset.r,w=(p+2)%3;
   tut.L[tut.i+1].s='У тебя '+N[p]+', у меня '+N[w]+'. Я победил!';tutStep(tut.i+1)});
