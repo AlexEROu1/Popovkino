@@ -224,7 +224,7 @@ button.ghost:hover{background:var(--panel);border-color:var(--fg)}
 <div class="screen" id="extra" hidden>
   <h1>Дополнения</h1>
   <div class="col"><button class="bossBtn" data-b="1">Бой с боссом: Пугало</button><button class="bossBtn" data-b="2">Бой с боссом: Мясник</button><button class="bossBtn" data-b="3">Бой с боссом: Тыквенный король</button></div>
-  <p class="note">Сразу десятая волна, на оружие выдаётся 1500 очков. Вступление пропускается.</p>
+  <p class="note">Босс открывается здесь после победы над ним в игре. Бой начинается сразу, на оружие выдаётся 1500 очков.</p>
   <h2 class="ch2">Герои и их суперсилы</h2>
   <div id="cards"></div>
   <button class="ghost" data-go="menu">Назад</button>
@@ -645,7 +645,7 @@ function update(dt){if(quake)quakeTick(dt);if(state!='play')return;
   parts=parts.filter(p=>p.l>0);
   if(msgT>0)msgT-=dt;
 }
-function kill(e){if(e.fin)return;if(e.boss&&e.bk==2&&wave==30){e.fin=1;e.hp=1e9;finale(e);return}score+=[10,30,20,500][e.t];cash+=[10,30,20,500][e.t];if(!(P.ab>0))P.ch=Math.min(100,P.ch+[7,16,11,60][e.t]);if(e.boss){say(e.name+' '+e.B.dead);if((wave==10||wave==20)&&!quake)quake={t:0,s:0};splat(e.x,e.y,40,'#7a0f14')}splat(e.x,e.y,e.t==1?16:9,'#7a0f14');if(!ac||ac.currentTime-(kill.t||0)>.09){if(ac)kill.t=ac.currentTime;play('head',.5,rnd(.94,1.08))||snd(140,.18,'sawtooth',.05)}
+function kill(e){if(e.fin)return;if(e.boss)bossWon(e.bk);if(e.boss&&e.bk==2&&wave==30){e.fin=1;e.hp=1e9;finale(e);return}score+=[10,30,20,500][e.t];cash+=[10,30,20,500][e.t];if(!(P.ab>0))P.ch=Math.min(100,P.ch+[7,16,11,60][e.t]);if(e.boss){say(e.name+' '+e.B.dead);if((wave==10||wave==20)&&!quake)quake={t:0,s:0};splat(e.x,e.y,40,'#7a0f14')}splat(e.x,e.y,e.t==1?16:9,'#7a0f14');if(!ac||ac.currentTime-(kill.t||0)>.09){if(ac)kill.t=ac.currentTime;play('head',.5,rnd(.94,1.08))||snd(140,.18,'sawtooth',.05)}
   for(let i=0;i<8;i++){const a=rnd(0,TAU),s=rnd(60,260);parts.push({x:e.x,y:e.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:rnd(.2,.5),c:'#c2242b'})}
   if(Math.random()<(D.drop||.17)){const o=[1,2,3,4,5,6].filter(i=>own[i]);drops.push({x:e.x,y:e.y,k:Math.random()<(D.med||.45)||!o.length?0:o[Math.floor(rnd(0,o.length))],l:14})}}
 function hurt(n){if(P.ab>0&&CHARS[ch].ab&&CHARS[ch].ab.t=='rage')return;{let dm=n*D.dmg;if(P.arm>0){const a=Math.min(P.arm,dm);P.arm-=a;dm-=a}P.hp-=dm}P.hurt=.25;splat(P.x,P.y,4,'#c2242b');
@@ -1169,7 +1169,11 @@ function useAbility(){if(state!='play')return;const a=CHARS[ch].ab;if(!a){say('�
 function hud(){$('wbtn').hidden=$('pbtn').hidden=false;$('fire').hidden=$('abil').hidden=!touchDev}
 function pause(){if(state!='play')return;sticks.L=sticks.R=null;mouse.down=false;state='pause';show('pause')}
 function resume(){show(null);hud();state='play'}
-$('pbtn').onclick=pause;document.querySelectorAll('.bossBtn').forEach(b=>b.onclick=()=>{bossTest=+b.dataset.b;state='menu';show('chars')});$('resume').onclick=resume;
+$('pbtn').onclick=pause;/* боссы в «Дополнениях» закрыты, пока игрок не победит их в игре; победы запоминаются на устройстве */
+let beaten=0;try{beaten=+localStorage.getItem('popBoss')||0}catch(e){}
+function bossWon(k){beaten|=1<<k;try{localStorage.setItem('popBoss',beaten)}catch(e){}bossBtns()}
+function bossBtns(){document.querySelectorAll('.bossBtn').forEach(b=>{const k=+b.dataset.b-1,ok=beaten>>k&1;b.disabled=!ok;b.style.opacity=ok?'':'.45';b.textContent=ok?'Бой с боссом: '+BK[k].name:'🔒 Босс '+(k+1)+': сначала победи его в игре'})}
+document.querySelectorAll('.bossBtn').forEach(b=>b.onclick=()=>{if(b.disabled)return;bossTest=+b.dataset.b;state='menu';show('chars')});bossBtns();$('resume').onclick=resume;
 addEventListener('keydown',e=>{if(e.code=='Escape'){if(state=='play')pause();else if(state=='pause'&&scr=='pause')resume()}});
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.id=='buy'||b.id=='wbtn'||b.id=='fire'||b.id=='abil')return;if(ac&&ac.state=='suspended')ac.resume();play(b.classList.contains('ghost')||b.dataset.back?'back':'click',.6)},true);
 function show(id){$('buy').hidden=true;$('wbtn').hidden=true;$('pbtn').hidden=true;$('fire').hidden=$('abil').hidden=true;fireHeld=false;scr=id;document.querySelectorAll('.screen').forEach(s=>s.hidden=s.id!==id)}
