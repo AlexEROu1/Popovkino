@@ -56,7 +56,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--mono);overflow:hidde
 .roll{position:absolute;left:0;top:0;width:100%;will-change:transform}
 .pst{height:100vh;position:relative;background:#000 center/cover no-repeat}
 .pst div{position:absolute;left:0;right:0;bottom:0;padding:60px 16px calc(16px + env(safe-area-inset-bottom,0px));background:linear-gradient(transparent,rgba(0,0,0,.94) 60%)}
-.pst b{display:block;font-family:"Nosifer","Russo One",sans-serif;font-weight:400;color:#d01f28;font-size:clamp(20px,5.6vw,56px);line-height:1.15;text-shadow:0 3px 0 #000,0 0 18px rgba(0,0,0,.8)}
+.pst b{display:block;font-family:"Nosifer","Russo One",sans-serif;font-weight:400;color:#d01f28;font-size:min(3.9vw,44px);white-space:nowrap;line-height:1.15;text-shadow:0 3px 0 #000,0 0 18px rgba(0,0,0,.8)}
 .pst span{display:block;font-family:var(--display);color:#e9eee2;font-size:clamp(14px,3vw,28px);margin-top:8px;letter-spacing:.06em}
 .cr{height:46vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
 .cr small{font-family:var(--mono);color:var(--pumpkin);font-size:clamp(12px,2.2vw,17px);letter-spacing:.24em;text-transform:uppercase}
@@ -695,9 +695,9 @@ function drawBar(){const now=performance.now(),tt=(now-BAR.t0)/1000,S=Math.min(v
   ctx.globalCompositeOperation='lighter';for(let k=0;k<4;k++){const lx=x0+S/2+Math.cos(tt*1.3+k*1.57)*S*.3,ly=y0+S*.58+Math.sin(tt*1.7+k*1.57)*S*.25,g=ctx.createRadialGradient(lx,ly,4,lx,ly,S*.3);g.addColorStop(0,'hsla('+((tt*80+k*90)%360)+',100%,55%,.22)');g.addColorStop(1,'hsla(0,100%,50%,0)');ctx.fillStyle=g;ctx.fillRect(x0,y0,S,S)}ctx.globalCompositeOperation='source-over';
   if(BAR.fl){const q=(now-BAR.fl)/1000;if(Math.sin(q*23)>.55||Math.sin(q*37)>.8){ctx.fillStyle='rgba(235,240,255,.85)';ctx.fillRect(0,0,vw,vh)}if(Math.floor(q*3)!=BAR.th){BAR.th=Math.floor(q*3);thunder(.9)}}}
 function finale(e){const m=CHARS[ch].male,c=CHARS[ch],hn=c.name.split(' ')[0],ch0=ch,B=(t,o)=>Object.assign({s:t,n:e.name,im:e.B.src,e,v:'b'},o),H=(t,o)=>Object.assign({s:t,n:hn,im:c.art,e:P,v:'p'},o),
-    Mi=(t,o)=>Object.assign({s:t,n:'Миша',v:'m'},o),J=(t,o)=>Object.assign({s:t,n:'Японка',v:'f'},o);let mus=null,eq=null;const eqOff=tc=>{if(eq){try{eq.g.gain.setTargetAtTime(0,ac.currentTime,tc);eq.s.stop(ac.currentTime+tc*6+.2)}catch(x){}eq=null}};
+    Mi=(t,o)=>Object.assign({s:t,n:'Миша',im:CHARS[8].art,v:'m'},o),J=(t,o)=>Object.assign({s:t,n:'Японка',v:'f'},o);let mus=null,eq=null;const eqOff=tc=>{if(eq){try{eq.g.gain.setTargetAtTime(0,ac.currentTime,tc);eq.s.stop(ac.currentTime+tc*6+.2)}catch(x){}eq=null}};
   enemies=[e];spits=[];bullets=[];toSpawn=0;
-  const end=()=>{eqOff(.1);clearInterval(finTimer);CRK=null;BAR=null;quake=null;if(mus){try{mus.g.gain.setTargetAtTime(0,ac.currentTime,.1);mus.s.stop(ac.currentTime+.6)}catch(x){}}ch=ch0;ck=null;enemies=[];heroTrack(false);state='menu';show('menu');cardOff();return true};
+  const end=()=>{eqOff(.1);clearInterval(finTimer);CRK=null;BAR=null;quake=null;if(mus){try{mus.g.gain.setTargetAtTime(0,ac.currentTime,.1);mus.s.stop(ac.currentTime+.6)}catch(x){}}ch=ch0;ck=null;enemies=[];heroTrack(false);if(mg&&ac)mg.gain.setTargetAtTime(opt.sound?.45:0,ac.currentTime,.5);state='menu';show('menu');cardOff();return true};
   startTut([B('Нееет, как ты '+(m?'смог':'смогла')+' это сделать?'),H('Фух… Так, надо спасти ребят.'),
     B('Ребят? Вы не уйдёте отсюда никогда!',{on:()=>{quake={t:2.2,s:1e9};mkCracks((P.x+e.x)/2,(P.y+e.y)/2);clearInterval(finTimer);eq=trk('quake',out(),opt.sound?.9:0,true);if(!eq)finTimer=setInterval(()=>snd(50,.5,'sawtooth',.15,.6),330)}}),
     H('Какого…?'),B('Вы навсегда мои!'),
@@ -1176,7 +1176,7 @@ function labels(){$('optSound').textContent='Звук: '+(opt.sound?'вкл':'в
 labels();
 $('optSound').onclick=()=>{opt.sound=!opt.sound;if(mg)mg.gain.value=opt.sound?.45:0;labels()};$('optAuto').onclick=()=>{opt.auto=!opt.auto;labels()};
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.go){let g=b.dataset.go;if(g=='chars'&&scr=='menu')bossTest=false;if(g=='menu'&&scr=='settings'&&state=='pause')g='pause';if(g=='menu'){state='menu';heroTrack(false)}show(g)}
+  if(b.dataset.go){let g=b.dataset.go;if(g=='chars'&&scr=='menu')bossTest=false;if(g=='menu'&&scr=='settings'&&state=='pause')g='pause';if(g=='menu'){state='menu';heroTrack(false);if(mg&&ac)mg.gain.setTargetAtTime(opt.sound?.45:0,ac.currentTime,.5)}show(g)}
   else if(b.dataset.u)buyUp(b.dataset.u)
   else if(b.dataset.d){D=DIFF[+b.dataset.d];if(bossTest){ck=null;VOID=null;const bw=bossTest*10-1;bossTest=false;go();wave=bw;cash=1500;waveT=4;say('Закупись в доме, босс уже идёт')}else startCut()}});
 </script>
