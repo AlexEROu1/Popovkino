@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Новогодняя игра</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--tgtop:0px;--paper:#fffdf6;--ink:#1d1d1d;--red:#e8433a;--sky:#1b2a44}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--sky);touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body{font-family:"Comic Sans MS","Chalkboard SE","Trebuchet MS",Arial,sans-serif;color:var(--ink)}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:calc(var(--tgtop) + 12px) 16px 12px;box-sizing:border-box;text-align:center;z-index:5}
+.screen[hidden]{display:none}
+.card{background:var(--paper);border:3px solid var(--ink);border-radius:6px;padding:14px 22px;box-shadow:5px 5px 0 rgba(0,0,0,.35);transform:rotate(-1.5deg);max-width:min(90vw,520px)}
+h1{margin:0;font-size:clamp(26px,6vw,46px);line-height:1.05}
+p{margin:8px 0 0;font-size:clamp(14px,2.6vw,18px)}
+.btn{font:inherit;font-size:clamp(18px,3.4vw,24px);font-weight:bold;padding:10px 26px;background:var(--red);color:#fff;border:3px solid var(--ink);border-radius:6px;box-shadow:4px 4px 0 rgba(0,0,0,.35);cursor:pointer;transform:rotate(1deg)}
+.btn:active{transform:translate(2px,2px) rotate(1deg);box-shadow:2px 2px 0 rgba(0,0,0,.35)}
+#ctrl{position:fixed;inset:0;pointer-events:none;z-index:3}
+#ctrl[hidden]{display:none}
+.pad{position:absolute;bottom:max(16px,env(safe-area-inset-bottom));width:74px;height:74px;border-radius:50%;background:rgba(255,253,246,.85);border:3px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:bold;pointer-events:auto;box-shadow:3px 3px 0 rgba(0,0,0,.35)}
+.pad.on{background:#ffd54a}
+#pl{left:max(16px,env(safe-area-inset-left))}#pr{left:calc(max(16px,env(safe-area-inset-left)) + 90px)}
+#pj{right:max(16px,env(safe-area-inset-right))}
+#hint{position:fixed;top:calc(var(--tgtop) + 10px);left:50%;transform:translateX(-50%) rotate(-1deg);z-index:4;background:var(--paper);border:3px solid var(--ink);border-radius:6px;padding:6px 14px;font-size:clamp(13px,2.4vw,17px);box-shadow:3px 3px 0 rgba(0,0,0,.35);white-space:nowrap}
+#hint[hidden]{display:none}
+#rot{z-index:9;background:var(--sky)}
+#rot .card{transform:rotate(1deg)}
+</style>
+</head><body>
+<canvas id="c"></canvas>
+<div id="hint" hidden>Тестовая сцена: бегай и прыгай</div>
+<div id="ctrl" hidden><div class="pad" id="pl">◀</div><div class="pad" id="pr">▶</div><div class="pad" id="pj">▲</div></div>
+
+<div class="screen" id="menu">
+  <div class="card"><h1>Новогодняя игра</h1><p>Сюжет и герои скоро появятся</p></div>
+  <button class="btn" id="start">Играть</button>
+</div>
+<div class="screen" id="rot" hidden>
+  <div class="card"><h1>↻</h1><p>Поверни телефон горизонтально</p></div>
+  <button class="btn" id="rotskip">Играть так</button>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('c'),ctx=cv.getContext('2d');
+const touchDev=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+let W=0,H=0,DPR=1,TGTOP=0,state='menu',rotSkip=false;
+
+function resize(){DPR=Math.min(2,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0)}
+addEventListener('resize',resize);resize();
+
+/* ---------- звук ---------- */
+let ac=null;
+/* айфон в беззвучном режиме глушит звук страницы; тихая петля в обычном плеере переводит звук в режим «музыка» */
+let sil=null;function unmute(){try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}if(sil)return;try{const n=8000,b=new Uint8Array(44+n),v=new DataView(b.buffer),w=(o,t)=>{for(let i=0;i<t.length;i++)b[o+i]=t.charCodeAt(i)};
+    w(0,'RIFF');v.setUint32(4,36+n,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint32(28,8000,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,'data');v.setUint32(40,n,true);b.fill(128,44);
+    sil=new Audio(URL.createObjectURL(new Blob([b],{type:'audio/wav'})));sil.loop=true;sil.setAttribute('playsinline','');sil.setAttribute('x-webkit-airplay','deny');const pr=sil.play();if(pr)pr.catch(()=>{sil=null})}catch(e){sil=null}}
+function unlock(){unmute();try{ac=ac||new (window.AudioContext||window.webkitAudioContext)()}catch(e){ac=null}if(ac&&ac.state=='suspended'){try{ac.resume()}catch(e){}}}
+['touchend','click','keydown'].forEach(ev=>addEventListener(ev,unlock,true));
+function snd(f,d,type,vol,slide){if(!ac)return;try{const t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(f*slide,t+d);g.gain.setValueAtTime(vol||.08,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+d+.02)}catch(e){}}
+function jingle(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>snd(f,.18,'triangle',.1),i*110))}
+
+/* ---------- поворот экрана ---------- */
+function chkRot(){const need=touchDev&&!rotSkip&&matchMedia('(orientation:portrait)').matches;$('rot').hidden=!need}
+$('rotskip').onclick=()=>{rotSkip=true;chkRot()};addEventListener('resize',chkRot);addEventListener('orientationchange',chkRot);
+function goLandscape(){if(!touchDev)return;try{const el=document.documentElement;if(el.requestFullscreen)el.requestFullscreen().then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape')).catch(()=>{})}catch(e){}}
+
+/* ---------- управление ---------- */
+const keys={l:0,r:0,j:0};
+const KM={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'j',KeyW:'j',Space:'j'};
+addEventListener('keydown',e=>{const k=KM[e.code];if(k){keys[k]=1;if(k=='j')keys.jq=1;e.preventDefault()}});
+addEventListener('keyup',e=>{const k=KM[e.code];if(k)keys[k]=0});
+function bindPad(id,k){const el=$(id);const on=e=>{e.preventDefault();keys[k]=1;if(k=='j')keys.jq=1;el.classList.add('on')},off=e=>{e.preventDefault();keys[k]=0;el.classList.remove('on')};
+  el.addEventListener('touchstart',on,{passive:false});el.addEventListener('touchend',off,{passive:false});el.addEventListener('touchcancel',off,{passive:false});
+  el.addEventListener('mousedown',on);el.addEventListener('mouseup',off);el.addEventListener('mouseleave',off)}
+bindPad('pl','l');bindPad('pr','r');bindPad('pj','j');
+document.addEventListener('touchmove',e=>{if(!e.target.closest('.screen'))e.preventDefault()},{passive:false});
+
+/* ---------- мир ---------- */
+const GROUND=()=>H*0.78;
+const P={x:0,y:0,vy:0,dir:1,t:0,onG:true};
+let flakes=[],camX=0,time=0;
+function reset(){P.x=W*0.3;P.y=GROUND();P.vy=0;flakes=Array.from({length:70},()=>({x:Math.random()*2000,y:Math.random()*H,s:2+Math.random()*3,v:20+Math.random()*30}))}
+
+/* бумажный персонаж: круглая голова, шапка-ушанка, «вырезанный» контур */
+function drawKid(x,y,dir,walk){
+  const s=Math.max(.7,H/420);ctx.save();ctx.translate(x,y);ctx.scale(dir*s,s);
+  const bob=walk?Math.abs(Math.sin(walk*14))*-4:0;ctx.translate(0,bob);
+  ctx.lineWidth=2.5;ctx.strokeStyle='#1d1d1d';
+  const shape=(f,c)=>{ctx.fillStyle=c;ctx.beginPath();f();ctx.fill();ctx.stroke()};
+  // ноги
+  const st=walk?Math.sin(walk*14)*5:0;
+  shape(()=>ctx.rect(-14+st,-12,12,12),'#3b3b3b');shape(()=>ctx.rect(2-st,-12,12,12),'#3b3b3b');
+  // куртка
+  shape(()=>{ctx.moveTo(-24,-12);ctx.lineTo(24,-12);ctx.lineTo(20,-44);ctx.lineTo(-20,-44);ctx.closePath()},'#2f7d4f');
+  ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(0,-42);ctx.stroke();
+  // голова
+  shape(()=>ctx.ellipse(0,-72,32,29,0,0,Math.PI*2),'#f6d3b3');
+  // ушанка
+  shape(()=>{ctx.moveTo(-33,-78);ctx.quadraticCurveTo(0,-118,33,-78);ctx.closePath()},'#7a4a2a');
+  shape(()=>ctx.rect(-34,-84,68,10),'#b98a5c');
+  shape(()=>ctx.rect(-36,-80,9,24),'#b98a5c');shape(()=>ctx.rect(27,-80,9,24),'#b98a5c');
+  // глаза и рот
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(-6,-70,8,9,0,0,Math.PI*2);ctx.ellipse(10,-70,8,9,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#1d1d1d';ctx.beginPath();ctx.arc(-3,-69,2.4,0,Math.PI*2);ctx.arc(13,-69,2.4,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.moveTo(-2,-55);ctx.quadraticCurveTo(5,-51,12,-56);ctx.stroke();
+  ctx.restore()}
+
+function drawWorld(){
+  // небо
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#1b2a44');g.addColorStop(1,'#46628f');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // луна
+  ctx.fillStyle='#fff6d0';ctx.strokeStyle='#1d1d1d';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(W*0.82,H*0.18,H*0.07,0,Math.PI*2);ctx.fill();ctx.stroke();
+  // горы (бумажные треугольники, медленный параллакс)
+  ctx.save();ctx.translate(-(camX*0.2)%600,0);
+  for(let i=-1;i<Math.ceil(W/300)+3;i++){const bx=i*300;ctx.fillStyle=i%2?'#8fa8c9':'#a9bfdc';ctx.beginPath();ctx.moveTo(bx-60,GROUND());ctx.lineTo(bx+150,H*0.32);ctx.lineTo(bx+360,GROUND());ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(bx+108,H*0.32+(GROUND()-H*0.32)*0.2);ctx.lineTo(bx+150,H*0.32);ctx.lineTo(bx+192,H*0.32+(GROUND()-H*0.32)*0.2);ctx.closePath();ctx.fill();ctx.stroke()}
+  ctx.restore();
+  // ёлки
+  ctx.save();ctx.translate(-(camX*0.6)%420,0);
+  for(let i=-1;i<Math.ceil(W/210)+3;i++){const tx=i*210+60,ty=GROUND(),th=H*0.22;
+    ctx.fillStyle='#5b3a1e';ctx.fillRect(tx-6,ty-14,12,14);ctx.strokeRect(tx-6,ty-14,12,14);
+    for(let k=0;k<3;k++){ctx.fillStyle='#2e6b3c';ctx.beginPath();ctx.moveTo(tx-34+k*7,ty-14-k*th*0.26);ctx.lineTo(tx,ty-14-th*0.45-k*th*0.26);ctx.lineTo(tx+34-k*7,ty-14-k*th*0.26);ctx.closePath();ctx.fill();ctx.stroke()}
+    ctx.fillStyle=['#e8433a','#ffd54a','#4ab3ff'][(i+3)%3];ctx.beginPath();ctx.arc(tx+10,ty-th*0.35,4,0,Math.PI*2);ctx.fill()}
+  ctx.restore();
+  // снег под ногами
+  ctx.fillStyle='#f4f7fb';ctx.beginPath();ctx.moveTo(0,GROUND());for(let x=0;x<=W+20;x+=40)ctx.quadraticCurveTo(x+20,GROUND()-6,x+40,GROUND());ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();ctx.fill();ctx.stroke();
+}
+function drawSnow(dt){ctx.fillStyle='#fff';for(const f of flakes){f.y+=f.v*dt;f.x+=Math.sin(time+f.y*0.01)*10*dt;if(f.y>H){f.y=-5;f.x=Math.random()*2000}ctx.beginPath();ctx.arc((f.x-camX*0.3)%W<0?(f.x-camX*0.3)%W+W:(f.x-camX*0.3)%W,f.y,f.s,0,Math.PI*2);ctx.fill()}}
+
+function update(dt){
+  const sp=W*0.28;let mv=0;if(keys.l){mv=-1;P.dir=-1}if(keys.r){mv=1;P.dir=1}
+  camX+=mv*sp*dt;P.t=mv?P.t+dt:0;
+  if((keys.j||keys.jq)&&P.onG){keys.jq=0;P.vy=-H*1.25;P.onG=false;snd(330,.22,'square',.07,2)}
+  P.vy+=H*3.2*dt;P.y+=P.vy*dt;if(P.y>=GROUND()){if(!P.onG)snd(140,.08,'triangle',.08);P.y=GROUND();P.vy=0;P.onG=true}
+}
+let last=0;
+function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;time+=dt;
+  if(state=='play')update(dt);else camX+=20*dt;
+  drawWorld();drawKid(state=='play'?P.x:W*0.5,state=='play'?P.y:GROUND(),P.dir,P.t);drawSnow(dt);
+  requestAnimationFrame(loop)}
+
+$('start').onclick=()=>{unlock();goLandscape();jingle();$('menu').hidden=true;$('ctrl').hidden=!touchDev;$('hint').hidden=false;reset();state='play';setTimeout(()=>$('hint').hidden=true,4000)};
+reset();chkRot();requestAnimationFrame(loop);
+
+/* внутри Telegram: полный экран, запрет сворачивания свайпом и отступ под кнопки самого Telegram */
+try{const tg=window.Telegram&&window.Telegram.WebApp;if(tg&&tg.platform&&tg.platform!='unknown'){
+  const pad=()=>{const a=tg.safeAreaInset||{},c=tg.contentSafeAreaInset||{};TGTOP=(a.top||0)+(c.top||0);document.documentElement.style.setProperty('--tgtop',TGTOP+'px')};
+  tg.ready();tg.expand();if(tg.disableVerticalSwipes)tg.disableVerticalSwipes();
+  if(tg.setHeaderColor)tg.setHeaderColor('#1b2a44');if(tg.setBackgroundColor)tg.setBackgroundColor('#1b2a44');
+  for(const ev of ['fullscreenChanged','safeAreaChanged','contentSafeAreaChanged','viewportChanged'])tg.onEvent&&tg.onEvent(ev,()=>{pad();resize();chkRot()});
+  if(/ios|android/.test(tg.platform)&&tg.requestFullscreen&&(!tg.isVersionAtLeast||tg.isVersionAtLeast('8.0'))){try{tg.requestFullscreen()}catch(e){}}
+  pad()}}catch(e){}
+</script>
+</body></html>
