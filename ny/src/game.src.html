@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Popovkino Village</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--tgtop:0px;--paper:#fffdf6;--ink:#1d1d1d;--red:#e8433a;--sky:#2b3f7a}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--sky);touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body{font-family:"Comic Sans MS","Chalkboard SE","Trebuchet MS",Arial,sans-serif;color:var(--ink)}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:calc(var(--tgtop) + 12px) 16px 12px;box-sizing:border-box;text-align:center;z-index:5}
+.screen[hidden]{display:none}
+#menu{background:rgba(20,30,70,.35)}
+.card{background:var(--paper);border:3px solid var(--ink);border-radius:6px;padding:14px 22px;box-shadow:5px 5px 0 rgba(0,0,0,.35);transform:rotate(-1.5deg);max-width:min(90vw,520px)}
+h1{margin:0;font-size:clamp(26px,6vw,46px);line-height:1.05}
+p{margin:8px 0 0;font-size:clamp(14px,2.6vw,18px)}
+.btn{font:inherit;font-size:clamp(18px,3.4vw,24px);font-weight:bold;padding:10px 26px;background:var(--red);color:#fff;border:3px solid var(--ink);border-radius:6px;box-shadow:4px 4px 0 rgba(0,0,0,.35);cursor:pointer;transform:rotate(1deg)}
+.btn:active{transform:translate(2px,2px) rotate(1deg);box-shadow:2px 2px 0 rgba(0,0,0,.35)}
+#hint{position:fixed;top:calc(var(--tgtop) + 10px);left:50%;transform:translateX(-50%) rotate(-1deg);z-index:4;background:var(--paper);border:3px solid var(--ink);border-radius:6px;padding:6px 14px;font-size:clamp(13px,2.4vw,17px);box-shadow:3px 3px 0 rgba(0,0,0,.35);white-space:nowrap;pointer-events:none;transition:opacity .5s}
+#hint.off{opacity:0}
+#rot{z-index:9;background:var(--sky)}
+#rot .card{transform:rotate(1deg)}
+</style>
+</head><body>
+<canvas id="c"></canvas>
+<div id="hint" class="off"></div>
+
+<div class="screen" id="menu">
+  <div class="card"><h1>Popovkino Village</h1><p>Новогодняя история</p></div>
+  <button class="btn" id="start">Играть</button>
+</div>
+<div class="screen" id="rot" hidden>
+  <div class="card"><h1>↻</h1><p>Поверни телефон горизонтально</p></div>
+  <button class="btn" id="rotskip">Играть так</button>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('c'),ctx=cv.getContext('2d');
+const touchDev=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+let W=0,H=0,DPR=1,TGTOP=0,state='menu',rotSkip=false;
+function resize(){DPR=Math.min(3,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR)}
+addEventListener('resize',resize);resize();
+
+/* ---------- картинки ---------- */
+function img(src){const i=new Image();i.src=src;if(i.decode)i.decode().catch(()=>{});return i}
+const ART={
+  village:img('{{ART:village.jpg}}'),
+  sign:img('{{ART:sign.png}}'),
+  lera:{front:img('{{ART:lera_front.png}}'),side:img('{{ART:lera_side.png}}'),back:img('{{ART:lera_back.png}}')}
+};
+
+/* ---------- звук ---------- */
+let ac=null,noise=null;
+/* айфон в беззвучном режиме глушит звук страницы; тихая петля в обычном плеере переводит звук в режим «музыка» */
+let sil=null;function unmute(){try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}if(sil)return;try{const n=8000,b=new Uint8Array(44+n),v=new DataView(b.buffer),w=(o,t)=>{for(let i=0;i<t.length;i++)b[o+i]=t.charCodeAt(i)};
+    w(0,'RIFF');v.setUint32(4,36+n,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint32(28,8000,true);v.setUint16(32,1,true);v.setUint16(34,8,true);w(36,'data');v.setUint32(40,n,true);b.fill(128,44);
+    sil=new Audio(URL.createObjectURL(new Blob([b],{type:'audio/wav'})));sil.loop=true;sil.setAttribute('playsinline','');sil.setAttribute('x-webkit-airplay','deny');const pr=sil.play();if(pr)pr.catch(()=>{sil=null})}catch(e){sil=null}}
+function unlock(){unmute();try{ac=ac||new (window.AudioContext||window.webkitAudioContext)()}catch(e){ac=null}if(ac&&ac.state=='suspended'){try{ac.resume()}catch(e){}}}
+['touchend','click','keydown'].forEach(ev=>addEventListener(ev,unlock,true));
+function snd(f,d,type,vol,slide){if(!ac)return;try{const t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(f*slide,t+d);g.gain.setValueAtTime(vol||.08,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+d+.02)}catch(e){}}
+function jingle(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>snd(f,.18,'triangle',.1),i*110))}
+/* хруст снега под ногами */
+function crunch(){if(!ac)return;try{if(!noise){const n=ac.sampleRate*.2|0;noise=ac.createBuffer(1,n,ac.sampleRate);const d=noise.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1}
+  const t=ac.currentTime,s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=noise;f.type='bandpass';f.frequency.value=1400+Math.random()*900;f.Q.value=.9;
+  g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.09,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.11);s.connect(f);f.connect(g);g.connect(ac.destination);s.start(t);s.stop(t+.13)}catch(e){}}
+
+/* ---------- поворот экрана ---------- */
+function chkRot(){const need=touchDev&&!rotSkip&&matchMedia('(orientation:portrait)').matches;$('rot').hidden=!need}
+$('rotskip').onclick=()=>{rotSkip=true;chkRot()};addEventListener('resize',chkRot);addEventListener('orientationchange',chkRot);
+function goLandscape(){if(!touchDev)return;try{const el=document.documentElement;if(el.requestFullscreen)el.requestFullscreen().then(()=>screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape')).catch(()=>{})}catch(e){}}
+
+/* ---------- локация 1: Popovkino Village ---------- */
+const WW=1280,WH=714;                       // размер картинки фона = размер мира
+const HILL=[[0,590],[100,520],[200,465],[300,420],[400,390],[500,370],[600,362],[700,365],[800,380],[900,410],[1000,450],[1100,500],[1200,555],[1280,595]];
+function hillY(x){for(let i=1;i<HILL.length;i++)if(x<=HILL[i][0]){const a=HILL[i-1],b=HILL[i],k=(x-a[0])/(b[0]-a[0]);return a[1]+(b[1]-a[1])*k}return HILL[HILL.length-1][1]}
+const SIGN={x:284,y:373,base:624,post:{x:447,y:620,rx:24,ry:11}};
+const X_MIN=40,X_MAX=1240,Y_MAX=702;
+const yMin=x=>hillY(x)+30;
+function walkable(x,y){if(x<X_MIN||x>X_MAX||y>Y_MAX||y<yMin(x))return false;const p=SIGN.post,dx=(x-p.x)/p.rx,dy=(y-p.y)/p.ry;return dx*dx+dy*dy>1}
+function clampWalk(x,y){x=Math.max(X_MIN,Math.min(X_MAX,x));y=Math.max(yMin(x),Math.min(Y_MAX,y));return[x,y]}
+/* чем ближе к зрителю (ниже по экрану), тем крупнее герой */
+const heroH=y=>170+Math.max(0,Math.min(1,(y-385)/320))*95;
+
+const P={x:820,y:660,dir:'down',ph:0,mv:0,target:null};
+let cam={x:0,y:0,s:1},time=0;
+
+/* ---------- управление ---------- */
+const keys={l:0,r:0,u:0,d:0};
+const KM={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
+addEventListener('keydown',e=>{const k=KM[e.code];if(k){keys[k]=1;P.target=null;e.preventDefault()}});
+addEventListener('keyup',e=>{const k=KM[e.code];if(k)keys[k]=0});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=0;joy=null});
+/* палец: ведёшь — джойстик появляется там, где коснулся; короткий тап — герой идёт в эту точку */
+let joy=null;
+cv.addEventListener('pointerdown',e=>{if(state!='play')return;e.preventDefault();if(joy)return;joy={id:e.pointerId,sx:e.clientX,sy:e.clientY,x:e.clientX,y:e.clientY,t:performance.now(),drag:false};try{cv.setPointerCapture(e.pointerId)}catch(_){}});
+cv.addEventListener('pointermove',e=>{if(!joy||e.pointerId!==joy.id)return;joy.x=e.clientX;joy.y=e.clientY;if(Math.hypot(joy.x-joy.sx,joy.y-joy.sy)>12){joy.drag=true;P.target=null}});
+function joyEnd(e){if(!joy||e.pointerId!==joy.id)return;if(!joy.drag&&performance.now()-joy.t<400){const w=toWorld(joy.x,joy.y);P.target=clampWalk(w[0],w[1])}joy=null}
+cv.addEventListener('pointerup',joyEnd);cv.addEventListener('pointercancel',joyEnd);
+document.addEventListener('touchmove',e=>{if(!e.target.closest('.screen'))e.preventDefault()},{passive:false});
+const toWorld=(sx,sy)=>[cam.x+sx/cam.s,cam.y+sy/cam.s];
+
+/* ---------- логика ---------- */
+function update(dt){
+  let mx=(keys.r-keys.l),my=(keys.d-keys.u),amt=0;
+  if(mx||my){const l=Math.hypot(mx,my);mx/=l;my/=l;amt=1}
+  else if(joy&&joy.drag){const dx=joy.x-joy.sx,dy=joy.y-joy.sy,l=Math.hypot(dx,dy);if(l>8){mx=dx/l;my=dy/l;amt=Math.min(1,l/55)}}
+  else if(P.target){const dx=P.target[0]-P.x,dy=(P.target[1]-P.y)/.7,l=Math.hypot(dx,dy);if(l<5)P.target=null;else{mx=dx/l;my=dy/l;amt=Math.min(1,l/30+.3)}}
+  const SPD=270*amt,nx=P.x+mx*SPD*dt,ny=P.y+my*SPD*.7*dt;
+  const ox=P.x,oy=P.y;
+  if(amt){
+    if(walkable(nx,ny)){P.x=nx;P.y=ny}
+    else if(walkable(nx,P.y))P.x=nx;
+    else if(walkable(P.x,ny))P.y=ny;
+    else{const c=clampWalk(nx,ny);if(walkable(c[0],c[1])){P.x=c[0];P.y=c[1]}}
+    if(Math.abs(mx)>=Math.abs(my)*.8)P.dir=mx>0?'right':'left';else P.dir=my>0?'down':'up';
+  }
+  const moved=Math.hypot(P.x-ox,P.y-oy);
+  if(P.target&&moved<.01)P.target=null;               // упёрлись — дальше не идём
+  P.mv+=((moved>.05?1:0)-P.mv)*Math.min(1,dt*12);
+  if(moved>.05){const before=Math.sin(P.ph);P.ph+=dt*10*Math.max(.6,amt);if(before>0&&Math.sin(P.ph)<=0||before<0&&Math.sin(P.ph)>=0)crunch()}
+}
+function updCam(dt,snap){
+  cam.s=Math.max(W/WW,H/WH);const vw=W/cam.s,vh=H/cam.s,h=heroH(P.y);
+  const tx=Math.max(0,Math.min(WW-vw,P.x-vw/2)),ty=Math.max(0,Math.min(WH-vh,P.y-h*.6-vh/2));
+  const k=snap?1:Math.min(1,dt*5);cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*k}
+
+/* ---------- рисование ---------- */
+function drawHero(){
+  const h=heroH(P.y),view=P.dir=='down'?'front':P.dir=='up'?'back':'side',im=ART.lera[view];if(!im.complete||!im.naturalWidth)return;
+  const w=h*im.naturalWidth/im.naturalHeight,bob=Math.abs(Math.sin(P.ph))*7*P.mv,tilt=Math.sin(P.ph)*.045*P.mv,breathe=1+Math.sin(time*2.2)*.008*(1-P.mv);
+  // тень
+  ctx.fillStyle='rgba(40,50,90,.22)';ctx.beginPath();ctx.ellipse(P.x,P.y,w*.42,h*.035+3,0,0,Math.PI*2);ctx.fill();
+  ctx.save();ctx.translate(P.x,P.y-bob);ctx.rotate(tilt);if(P.dir=='left')ctx.scale(-1,1);ctx.scale(1,breathe);
+  ctx.drawImage(im,-w/2,-h,w,h);ctx.restore()}
+function drawSign(){const s=ART.sign;if(s.complete&&s.naturalWidth)ctx.drawImage(s,SIGN.x,SIGN.y)}
+let flakes=Array.from({length:60},()=>({x:Math.random(),y:Math.random(),s:1.2+Math.random()*2.4,v:.03+Math.random()*.05,p:Math.random()*6}));
+function drawSnow(dt){ctx.fillStyle='rgba(255,255,255,.9)';for(const f of flakes){f.y+=f.v*dt;if(f.y>1.02){f.y=-.02;f.x=Math.random()}const x=(f.x+Math.sin(time*.8+f.p)*.01)*W,y=f.y*H;ctx.beginPath();ctx.arc(x,y,f.s,0,Math.PI*2);ctx.fill()}}
+function drawJoy(){if(!joy||!joy.drag)return;const dx=joy.x-joy.sx,dy=joy.y-joy.sy,l=Math.hypot(dx,dy),k=l>55?55/l:1;
+  ctx.lineWidth=3;ctx.strokeStyle='rgba(29,29,29,.7)';ctx.fillStyle='rgba(255,253,246,.35)';ctx.beginPath();ctx.arc(joy.sx,joy.sy,55,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle='rgba(255,253,246,.9)';ctx.beginPath();ctx.arc(joy.sx+dx*k,joy.sy+dy*k,24,0,Math.PI*2);ctx.fill();ctx.stroke()}
+
+let last=0;
+function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;time+=dt;
+  if(state=='play')update(dt);
+  updCam(dt);
+  ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#2b3f7a';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.scale(cam.s,cam.s);ctx.translate(-cam.x,-cam.y);
+  if(ART.village.complete)ctx.drawImage(ART.village,0,0,WW,WH);
+  if(P.y<SIGN.base){drawHero();drawSign()}else{drawSign();drawHero()}   // табличка закрывает Леру, если та стоит за ней
+  if(P.target&&state=='play'){ctx.strokeStyle='rgba(29,29,29,.5)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(P.target[0],P.target[1],14,5,0,0,Math.PI*2);ctx.stroke()}
+  ctx.restore();
+  drawSnow(dt);drawJoy();
+  requestAnimationFrame(loop)}
+
+function hint(t,ms){const h=$('hint');h.textContent=t;h.classList.remove('off');clearTimeout(hint.t);hint.t=setTimeout(()=>h.classList.add('off'),ms||4000)}
+$('start').onclick=()=>{unlock();goLandscape();jingle();$('menu').hidden=true;state='play';
+  hint(touchDev?'Веди пальцем по экрану или тапни, куда идти':'Стрелки / WASD или клик мышкой, куда идти',5000)};
+updCam(0,true);chkRot();requestAnimationFrame(loop);
+
+/* внутри Telegram: полный экран, запрет сворачивания свайпом и отступ под кнопки самого Telegram */
+try{const tg=window.Telegram&&window.Telegram.WebApp;if(tg&&tg.platform&&tg.platform!='unknown'){
+  const pad=()=>{const a=tg.safeAreaInset||{},c=tg.contentSafeAreaInset||{};TGTOP=(a.top||0)+(c.top||0);document.documentElement.style.setProperty('--tgtop',TGTOP+'px')};
+  tg.ready();tg.expand();if(tg.disableVerticalSwipes)tg.disableVerticalSwipes();
+  if(tg.setHeaderColor)tg.setHeaderColor('#2b3f7a');if(tg.setBackgroundColor)tg.setBackgroundColor('#2b3f7a');
+  for(const ev of ['fullscreenChanged','safeAreaChanged','contentSafeAreaChanged','viewportChanged'])tg.onEvent&&tg.onEvent(ev,()=>{pad();resize();chkRot()});
+  if(/ios|android/.test(tg.platform)&&tg.requestFullscreen&&(!tg.isVersionAtLeast||tg.isVersionAtLeast('8.0'))){try{tg.requestFullscreen()}catch(e){}}
+  pad()}}catch(e){}
+</script>
+</body></html>
