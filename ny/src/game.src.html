@@ -63,6 +63,9 @@ p{margin:8px 0 0;font-size:clamp(14px,2.6vw,18px)}
 @keyframes bang{0%{transform:scale(0) rotate(-25deg)}100%{transform:scale(1) rotate(-5deg)}}
 @keyframes drop{0%{transform:translateY(-120vh) rotate(8deg)}100%{transform:translateY(0) rotate(4deg)}}
 @keyframes wob{from{transform:scale(1) rotate(-5deg)}to{transform:scale(1.07) rotate(-2deg)}}
+#skip{position:fixed;top:calc(var(--tgtop) + 10px);right:max(12px,env(safe-area-inset-right));z-index:9;font:inherit;font-weight:bold;font-size:15px;padding:7px 12px;background:rgba(255,253,246,.9);color:var(--ink);border:3px solid var(--ink);border-radius:6px;box-shadow:3px 3px 0 rgba(0,0,0,.35)}
+#goal{position:fixed;top:calc(var(--tgtop) + 10px);left:max(12px,env(safe-area-inset-left));z-index:4;background:var(--paper);border:3px solid var(--ink);border-radius:6px;padding:5px 12px;font-size:clamp(13px,3.6vw,16px);font-weight:bold;box-shadow:3px 3px 0 rgba(0,0,0,.35);transform:rotate(-1.5deg);pointer-events:none}
+#goal b{color:var(--red)}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:8;transition:opacity .7s}
 #fade.on{opacity:1}
 </style>
@@ -77,6 +80,8 @@ p{margin:8px 0 0;font-size:clamp(14px,2.6vw,18px)}
 </div>
 <button id="throw" hidden><span>❄</span>Снежок</button>
 <div id="banner" hidden><span></span></div>
+<button id="skip" hidden>Пропустить ⏭</button>
+<div id="goal" hidden>Задача: <b>найди ребят →</b></div>
 <div id="fade"></div>
 
 <div class="screen" id="menu">
@@ -119,6 +124,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 /* ---------- картинки ---------- */
 function img(src){const i=new Image();i.src=src;if(i.decode)i.decode().catch(()=>{});return i}
 const ART={
+  /*LERA_PJ*/
   village:img('{{ART:village_wide.jpg}}'),
   sign:img('{{ART:sign.png}}'),
   lera:{front:img('{{ART:lera_front.png}}'),side:img('{{ART:lera_side.png}}'),back:img('{{ART:lera_back.png}}'),side_noarm:img('{{ART:lera_side_noarm.png}}')},
@@ -150,7 +156,14 @@ const SFX={
   splat:()=>{noiseHit(500,.7,.22,.2,.5);snd(180,.12,'triangle',.08,.5)},
   ouch:who=>snd(who===L?620:760,.18,'triangle',.07,.6),
   jump:()=>snd(300,.16,'square',.04,1.9),
-  blip:who=>snd(who===L?460:640,.03,'square',.018),
+  blip:who=>snd(who===L?460:who===LE?300:640,.03,'square',.018),
+  birds:()=>[0,140,300,520,640].forEach(d=>setTimeout(()=>snd(2300+Math.random()*700,.07,'sine',.035,1.35),d)),
+  yawn:()=>snd(430,1.0,'sawtooth',.025,.45),
+  creak:()=>{snd(170,.6,'sawtooth',.03,.72);setTimeout(()=>snd(150,.4,'sawtooth',.025,.8),250)},
+  scream:()=>{snd(880,.75,'square',.045,1.5);snd(620,.75,'sawtooth',.03,1.7);[311,370,440].forEach(f=>snd(f,.6,'square',.03))},
+  groan:()=>snd(140,1.1,'sawtooth',.045,.7),
+  thud:()=>{noiseHit(130,.5,.35,.3);snd(70,.35,'sine',.18,.5)},
+  puff:()=>noiseHit(900,.6,.14,.4,.3),
   jingle:()=>[523,659,784,1047].forEach((f,i)=>setTimeout(()=>snd(f,.18,'triangle',.1),i*110)),
   sad:()=>[392,349,311,262].forEach((f,i)=>setTimeout(()=>snd(f,.28,'triangle',.09),i*180)),
   fanfare:()=>{[[523,0],[659,.12],[784,.24],[1047,.36]].forEach(([f,t])=>setTimeout(()=>snd(f,.16,'square',.06),t*1000));
@@ -246,7 +259,7 @@ function updExplore(dt){
 let dlgWait=null,typing=null;
 function say(c,text){return new Promise(res=>{
   $('dlg').hidden=false;$('dname').textContent=c.name;$('dname').style.background=c.color;$('dtext').textContent='';$('dnext').hidden=true;
-  c.say=1;cam.focus=c;let i=0;clearInterval(typing);
+  c.say=1;if(CH.includes(c))cam.focus=c;let i=0;clearInterval(typing);
   const done=()=>{clearInterval(typing);typing=null;$('dtext').textContent=text;$('dnext').hidden=false};
   typing=setInterval(()=>{i++;$('dtext').textContent=text.slice(0,i);if(i%2)SFX.blip(c);if(i>=text.length)done()},32);
   dlgWait=()=>{if(typing){done();return}dlgWait=null;c.say=null;$('dlg').hidden=true;res()}})}
@@ -285,7 +298,7 @@ function onHit(c,b){splat(b.x,b.y,b.z);SFX.splat();SFX.ouch(c);c.flash=.45;
 function bubble(c,t){c.bub={t,ttl:.9}}
 
 /* ---------- сценка у снеговика ---------- */
-async function startTalk(){if(mode!='explore')return;talked=true;mode='cut';$('talk').hidden=true;joy=null;L.target=null;for(const k in keys)keys[k]=0;
+async function startTalk(){if(mode!='explore')return;talked=true;$('goal').hidden=true;mode='cut';$('talk').hidden=true;joy=null;L.target=null;for(const k in keys)keys[k]=0;
   N.anim=null;
   await walkTo(L,N.x-200,N.y+18);
   L.dir='right';N.dir='left';await wait(250);
@@ -412,6 +425,116 @@ function drawConfetti(dt){for(const p of confetti){p.vy+=900*dt;p.vx*=.99;p.x+=p
   ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h*Math.abs(Math.cos(p.r*1.7)));ctx.restore()}
   confetti=confetti.filter(p=>p.y<H+40)}
 
+/* ================= ЗАСТАВКА: утро 1 января ================= */
+/* кадры К1..К11 — картинки 9:16; пока их нет, рисуются заглушки с подписью */
+const IMG_INTRO={/*INTRO_IMAGES*/};
+const LE={name:'Лёша',color:'#7fb3ff'};
+let shot=null,ifade=0,iwhite=0,introId=0,pop=null,shakeT=0,ipuff=[],music=null;
+function tween(get,set,to,ms){return new Promise(r=>{const from=get(),t0=performance.now();(function f(){const k=Math.min(1,(performance.now()-t0)/ms);set(from+(to-from)*k);k<1?requestAnimationFrame(f):r()})()})}
+const fadeI=(to,ms)=>tween(()=>ifade,v=>ifade=v,to,ms),whiteI=(to,ms)=>tween(()=>iwhite,v=>iwhite=v,to,ms);
+async function cut(s,ms){await fadeI(1,ms||260);shot=Object.assign({t:0},s);await fadeI(0,ms||260)}
+function popText(text,color){pop={text,color:color||'#ffd21e',t:0}}
+function shake(s){shakeT=s||.5}
+function puff(x,y){for(let i=0;i<26;i++)ipuff.push({x,y,vx:rnd(-160,160),vy:rnd(-200,60),r:rnd(14,34),t:rnd(.5,.9)});SFX.puff()}
+/* музыка-шкатулка, пока нет своей */
+function musicOn(){musicOff();const N1=[523,659,784,659,587,698,880,698,523,659,784,1047,988,784,659,587];let i=0;
+  music=setInterval(()=>{const f=N1[i++%N1.length];snd(f,.5,'triangle',.035);if(i%4==1)snd(f/2,.9,'sine',.03)},330)}
+function musicOff(){clearInterval(music);music=null}
+
+/* камера для общего плана деревни */
+function introCam(dt){if(!shot||shot.type!='world')return;const k=clamp(shot.t/shot.dur,0,1),e=k*k*(3-2*k),a=shot.from,b=shot.to;
+  const vw=a.vw+(b.vw-a.vw)*e;cam.s=W/vw;const vh=H/cam.s;cam.x=a.x+(b.x-a.x)*e-vw/2;cam.y=a.y+(b.y-a.y)*e-vh/2}
+/* кадр-картинка с медленным наездом/панорамой; Лера может идти поверх фона */
+function drawFrame(){const s=shot,k=clamp(s.t/(s.dur||1),0,1),e=k*k*(3-2*k),im=IMG_INTRO[s.key];
+  const z=s.z?s.z[0]+(s.z[1]-s.z[0])*e:1,px=s.p?s.p[0]+(s.p[2]-s.p[0])*e:.5,py=s.p?s.p[1]+(s.p[3]-s.p[1])*e:.5;
+  let sx=0,sy=0;if(shakeT>0){sx=rnd(-9,9);sy=rnd(-9,9)}
+  ctx.save();ctx.translate(W/2+sx,H/2+sy);ctx.scale(z,z);
+  if(im&&im.naturalWidth){const sc=Math.max(W/im.naturalWidth,H/im.naturalHeight),iw=im.naturalWidth*sc,ih=im.naturalHeight*sc;
+    ctx.drawImage(im,clamp(-iw*px,W/2-iw,-W/2),clamp(-ih*py,H/2-ih,-H/2),iw,ih)}
+  else{ // заглушка
+    ctx.fillStyle=s.bg||'#c9d6e8';ctx.fillRect(-W,-H,W*2,H*2);
+    ctx.fillStyle='rgba(255,255,255,.5)';for(let i=0;i<7;i++)ctx.fillRect(-W/2+i*W/6-20,-H,8,H*2);
+    ctx.textAlign='center';ctx.fillStyle='#1d1d1d';ctx.font='bold 26px "Comic Sans MS","Chalkboard SE",Arial';
+    wrapText(s.label||'',0,-H*.18,W*.8,32);ctx.font='15px Arial';ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillText('заглушка: '+(s.key||'').toUpperCase(),0,-H*.18-44)}
+  ctx.restore();
+  if(s.walk)drawWalker(s);
+}
+function wrapText(t,x,y,maxW,lh){const words=t.split(' ');let line='',yy=y;for(const w of words){const test=line?line+' '+w:w;if(ctx.measureText(test).width>maxW&&line){ctx.fillText(line,x,yy);line=w;yy+=lh}else line=test}ctx.fillText(line,x,yy)}
+/* Лера идёт по кадру (по дому — в пижаме, если есть такой лист) */
+function drawWalker(s){const w=s.walk,p=clamp((s.t-(w.t0||0))/w.dur,0,1),art=(w.art=='pj'&&ART.lera_pj)?ART.lera_pj:ART.lera,im=art.side;if(!im.naturalWidth)return;
+  const h=H*(w.h||.44),ww=h*im.naturalWidth/im.naturalHeight,x=W*(w.x0+(w.x1-w.x0)*p),y=H*(w.y||.88),mv=p>0&&p<1;
+  const ph=Math.max(0,(s.t-(w.t0||0))/1000)*(w.fast?13:10);if(mv&&w.last!=null&&(Math.sin(w.last)>0)!=(Math.sin(ph)>0))SFX.step();w.last=ph;w.ph=ph;
+  const bob=mv?Math.abs(Math.sin(w.ph))*h*.03:0,tilt=mv?Math.sin(w.ph)*.05:0;
+  ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(x,y,ww*.45,h*.035,0,0,Math.PI*2);ctx.fill();
+  ctx.save();ctx.translate(x,y-bob);ctx.rotate(tilt);if(w.x1<w.x0)ctx.scale(-1,1);ctx.drawImage(im,-ww/2,-h,ww,h);ctx.restore()}
+function drawIntroOverlay(dt){
+  if(mode=='intro'&&shot){shot.t+=dt*1000;
+    if(shot.cards)for(const c of shot.cards){const a=clamp((shot.t-c.at)/450,0,1);if(a>0)drawCard(c.text,H*c.y,a,c.size||34,c.sub)}}
+  if(shakeT>0)shakeT-=dt;
+  for(const p of ipuff){p.t-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=40*dt;ctx.globalAlpha=clamp(p.t*1.6,0,1);ctx.fillStyle='#eef1f5';ctx.strokeStyle='#1d1d1d';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.stroke()}
+  ctx.globalAlpha=1;ipuff=ipuff.filter(p=>p.t>0);
+  if(pop){pop.t+=dt;const sc=pop.t<.25?pop.t/.25*1.2:1.2-Math.min(.2,(pop.t-.25)),a=clamp(1.6-pop.t,0,1);
+    ctx.save();ctx.globalAlpha=a;ctx.translate(W/2,H*.3);ctx.rotate(-.08);ctx.scale(sc,sc);ctx.font='900 64px Impact,"Arial Black",Arial';ctx.textAlign='center';
+    ctx.lineWidth=8;ctx.strokeStyle='#1d1d1d';ctx.strokeText(pop.text,0,0);ctx.fillStyle=pop.color;ctx.fillText(pop.text,0,0);ctx.restore();if(a<=0)pop=null}
+  if(ifade>0){ctx.fillStyle='rgba(0,0,0,'+ifade+')';ctx.fillRect(0,0,W,H)}
+  if(iwhite>0){ctx.fillStyle='rgba(255,255,255,'+iwhite+')';ctx.fillRect(0,0,W,H)}}
+function drawCard(text,y,a,size,sub){ctx.save();ctx.globalAlpha=a;ctx.font='bold '+size+'px "Comic Sans MS","Chalkboard SE",Arial';ctx.textAlign='center';
+  const tw=Math.max(ctx.measureText(text).width,sub?ctx.measureText(sub).width*.6:0)+44,th=size*1.5+(sub?size*.8:0);
+  ctx.translate(W/2,y);ctx.rotate(-.025);ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(-tw/2+6,-th/2+6,tw,th);
+  ctx.fillStyle='#fffdf6';ctx.strokeStyle='#1d1d1d';ctx.lineWidth=3;ctx.fillRect(-tw/2,-th/2,tw,th);ctx.strokeRect(-tw/2,-th/2,tw,th);
+  ctx.fillStyle='#1d1d1d';ctx.fillText(text,0,sub?-size*.15:size*.35);if(sub){ctx.font=Math.round(size*.55)+'px "Comic Sans MS",Arial';ctx.fillText(sub,0,size*.75)}ctx.restore()}
+
+/* сценарий заставки */
+async function intro(){const id=++introId,ok=()=>{if(id!==introId)throw 0};
+  mode='intro';$('skip').hidden=false;$('goal').hidden=true;musicOn();ifade=1;
+  try{
+    shot={type:'world',t:0,dur:7000,from:{x:640,y:470,vw:1350},to:{x:700,y:330,vw:620},
+      cards:[{text:'Popovkino Village',at:1200,y:.2,size:38},{text:'1 января. 11:47',at:3600,y:.78,size:28}]};
+    await fadeI(0,900);ok();await wait(6200);ok();
+    await cut({key:'k1',label:'За окном светит солнце',bg:'#ffe9a8',z:[1,1.1],dur:2800});ok();SFX.birds();await wait(2600);ok();
+    await cut({key:'k2',label:'На тумбе лежат очки',bg:'#e9d3b5',z:[1.05,1.15],dur:2300});ok();await wait(2100);ok();
+    await cut({key:'k3',label:'Рука тянется к очкам',bg:'#e9d3b5',z:[1.15,1.22],p:[.55,.5,.45,.5],dur:2300},120);ok();await wait(2100);ok();
+    await cut({key:'k4',label:'Лера просыпается, потягивается и зевает',bg:'#cfe3f7',z:[1,1.08],dur:3000});ok();await wait(500);SFX.yawn();await wait(2400);ok();
+    await cut({key:'k5',label:'Лера надевает очки',bg:'#cfe3f7',z:[1.08,1.15],dur:2300});ok();await wait(2100);ok();
+    await cut({key:'k6',label:'Лера у окна, улыбается',bg:'#ffe9a8',z:[1,1.12],p:[.5,.55,.5,.45],dur:3200});ok();SFX.birds();await wait(3000);ok();
+    // коридор: Лера радостно идёт к туалету
+    await cut({key:'k7',label:'Коридор. Дверь в туалет',bg:'#d8c3a5',dur:3600,walk:{art:'pj',x0:-.15,x1:.68,dur:3000,t0:300}});ok();await wait(3500);ok();
+    SFX.creak();await wait(500);ok();
+    await cut({key:'k8',label:'Лера в ужасе кричит!',bg:'#f2b6b0',z:[1.1,1.2],dur:1800},120);ok();shake(.7);SFX.scream();popText('А-А-А!','#ff5a4a');await wait(1700);ok();
+    await cut({key:'k9',label:'Лёша лежит на полу у туалета и кряхтит',bg:'#c6d8cf',z:[1,1.1],dur:9000});ok();SFX.groan();await wait(700);ok();
+    await say(L,'О боже, Лёш, как тебе не стыдно?');ok();
+    SFX.groan();await say(LE,'Воды…');ok();
+    await cut({key:'k10',label:'Лера пытается поднять Лёшу и ругается',bg:'#c6d8cf',z:[1.05,1.12],dur:9000});ok();
+    await say(L,'Опять ты напился, ну сколько можно?');ok();
+    SFX.groan();await say(LE,'Помогите мне');ok();
+    await say(L,'Так, всё! Лежи тут сколько хочешь');ok();
+    shake(.45);SFX.thud();popText('БУМ!');await wait(900);ok();
+    await cut({key:'k9',label:'Лёша один на полу',bg:'#c6d8cf',z:[1.1,1.14],dur:4000},150);ok();
+    SFX.groan();await say(LE,'Водички принесите…');ok();
+    // прихожая: злая Лера, «пуф» — и она в куртке, дверь, свет
+    const hall={key:'k11',label:'Прихожая. Входная дверь, на крючке куртка',bg:'#d8c3a5',dur:2400,walk:{art:'pj',x0:-.15,x1:.45,dur:1800,t0:200,fast:1}};
+    await cut(hall);ok();await wait(2200);ok();
+    puff(W*.45,H*.72);await wait(260);ok();
+    shot.walk={art:'jacket',x0:.45,x1:.45,dur:1};await wait(700);ok();
+    shot.walk={art:'jacket',x0:.45,x1:.82,dur:1100,t0:shot.t};await wait(1100);ok();
+    SFX.creak();SFX.whoosh();await whiteI(1,500);ok();
+    await toVillage(true,id);
+  }catch(e){}
+}
+/* выход на улицу: Лера у дома, монолог, дальше управляем ей */
+async function toVillage(talk,id){musicOff();shot=null;ifade=0;$('skip').hidden=true;
+  Object.assign(L,{x:700,y:425,dir:'down',z:0,vz:0,mv:0,goal:null,target:null});
+  mode='cut';cam.focus=null;updCam(0,true);
+  if(talk){await whiteI(0,700);if(id!==introId)return;await wait(300);
+    await say(L,'Так, надо успокоиться\nВсё-таки, какое прекрасное утро');if(id!==introId)return;
+    await say(L,'Хм, надо найти остальных ребят');if(id!==introId)return}
+  else iwhite=0;
+  cam.focus=null;mode='explore';
+  hint(touchDev?'Веди пальцем по экрану или тапни, куда идти':'Стрелки / WASD или клик мышкой, куда идти',4500);
+  setTimeout(()=>{if(!talked)$('goal').hidden=false},4800)}
+$('skip').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();introId++;
+  clearInterval(typing);typing=null;dlgWait=null;$('dlg').hidden=true;L.say=null;pop=null;shakeT=0;toVillage(false,introId)});
+
 /* ---------- камера ---------- */
 cam.focus=null;
 /* ширина видимого куска мира на вертикальном экране */
@@ -509,18 +632,19 @@ function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;time+=dt;
   updBurial(dt);
   for(const c of CH){goalStep(c,dt);updThrow(c,dt);c.flash=Math.max(0,c.flash-dt);c.lean=Math.max(0,c.lean-dt*5);if(c.bub&&(c.bub.ttl-=dt)<0)c.bub=null}
   updBalls(dt);
-  updCam(dt);
+  if(mode=='intro')introCam(dt);else updCam(dt);
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.fillStyle='#2b3f7a';ctx.fillRect(0,0,W,H);
+  if(mode=='intro'&&shot&&shot.type!='world')drawFrame();else{
   ctx.save();ctx.scale(cam.s,cam.s);ctx.translate(-cam.x,-cam.y);
   drawBeyond();
   if(ART.village.complete)ctx.drawImage(ART.village,0,0,WW,WH);
   // всё, что стоит на земле, рисуем от дальнего к ближнему
-  const list=[{y:SIGN.base,d:drawSign},{y:SNOWMAN.y,d:drawSnowman},...CH.map(c=>({y:c.y+.1,d:()=>drawChar(c)})),...balls.map(b=>({y:b.y+.2,d:()=>drawBall(b)}))];
+  const list=[{y:SIGN.base,d:drawSign},{y:SNOWMAN.y,d:drawSnowman},...(mode=='intro'?[]:CH).map(c=>({y:c.y+.1,d:()=>drawChar(c)})),...balls.map(b=>({y:b.y+.2,d:()=>drawBall(b)}))];
   list.sort((a,b)=>a.y-b.y);for(const it of list)it.d();
   drawParts();drawDrops();
   if(L.target&&mode=='explore'){ctx.strokeStyle='rgba(29,29,29,.5)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(L.target[0],L.target[1],14,5,0,0,Math.PI*2);ctx.stroke()}
-  ctx.restore();
-  drawSnow(dt);drawJoy();drawConfetti(dt);
+  ctx.restore();}
+  drawSnow(dt);drawJoy();drawConfetti(dt);drawIntroOverlay(dt);
   requestAnimationFrame(loop)}
 
 function hint(t,ms){const h=$('hint');h.textContent=t;h.classList.remove('off');h.classList.toggle('low',mode=='fight');clearTimeout(hint.t);hint.t=setTimeout(()=>h.classList.add('off'),ms||4000)}
@@ -534,8 +658,7 @@ $('optSound').onclick=e=>{const b=e.target.closest('button');if(!b)return;OPT.so
 $('optDiff').onclick=e=>{const b=e.target.closest('button');if(!b)return;OPT.diff=b.dataset.v;saveOpt();paintOpts();click()};
 $('exitBtn').onclick=()=>{click();if(TG&&TG.close){TG.close();return}try{window.close()}catch(e){}setTimeout(()=>showScreen('bye'),250)};
 $('byeBack').onclick=()=>showScreen('menu');
-$('start').onclick=()=>{unlock();goPortrait();SFX.jingle();showScreen(null);mode='explore';
-  hint(touchDev?'Веди пальцем по экрану или тапни, куда идти':'Стрелки / WASD или клик мышкой, куда идти',5000)};
+$('start').onclick=()=>{unlock();goPortrait();showScreen(null);intro()};
 updCam(0,true);chkRot();requestAnimationFrame(loop);
 
 /* внутри Telegram: полный экран, запрет сворачивания свайпом и отступ под кнопки самого Telegram */
