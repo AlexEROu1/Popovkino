@@ -188,8 +188,8 @@ const heroH=y=>170+clamp((y-385)/320,0,1)*95;
 
 /* ---------- персонажи ---------- */
 function mkChar(o){return Object.assign({x:0,y:0,dir:'down',ph:0,mv:0,z:0,vz:0,hp:100,flash:0,lean:0,inv:0,anim:null,goal:null,say:null},o)}
-const L=mkChar({name:'Лера',color:'#a6e22e',sleeve:'#b4f632',art:ART.lera,x:820,y:660});
-const N=mkChar({name:'Настя',color:'#f27ab8',sleeve:'#f67cb9',art:ART.nastya,x:1945,y:578,dir:'right',anim:'sculpt'});
+const L=mkChar({name:'Лера',color:'#a6e22e',sleeve:'#b4f632',arm:{x:-.02,y:-.6,w:.085},art:ART.lera,x:820,y:660});
+const N=mkChar({name:'Настя',color:'#f27ab8',sleeve:'#3f2d20',arm:{x:-.015,y:-.67,w:.062},art:ART.nastya,x:1945,y:578,dir:'right',anim:'sculpt'});
 const CH=[L,N];
 let cam={x:0,y:0,s:1},time=0,balls=[],parts=[],talked=false;
 
@@ -451,7 +451,7 @@ function drawChar(c){
   ctx.restore();
   if(burial&&burial.c===c)drawMound(c);
   if(c.bub)drawBubble(c.x,c.y-c.z-h-10,c.bub.t)}
-function drawArm(c,h,side){const a=armAngle(c.throwT)*Math.PI/180,sx=side?-h*.02:h*.13,sy=-h*.6,len=h*.3,tw=h*.085;
+function drawArm(c,h,side){const A=c.arm,a=armAngle(c.throwT)*Math.PI/180,sx=side?h*A.x:h*.13,sy=h*A.y,len=h*.3,tw=h*A.w;
   ctx.globalAlpha*=c.throwT>THROW_T-.08?Math.max(0,(THROW_T-c.throwT)/.08):1;
   ctx.save();ctx.translate(sx,sy);ctx.rotate(a);ctx.lineWidth=2.6;ctx.strokeStyle='#1d1d1d';ctx.lineJoin='round';
   ctx.fillStyle=c.sleeve;ctx.beginPath();ctx.roundRect?ctx.roundRect(-tw*.55,-tw/2,len,tw,tw*.45):ctx.rect(-tw*.55,-tw/2,len,tw);ctx.fill();ctx.stroke();
