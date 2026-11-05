@@ -10,7 +10,7 @@ body{font-family:"Comic Sans MS","Chalkboard SE","Trebuchet MS",Arial,sans-serif
 canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:calc(var(--tgtop) + 12px) 16px 12px;box-sizing:border-box;text-align:center;z-index:6}
 .screen[hidden],[hidden]{display:none!important}
-#menu,#over{background:rgba(20,30,70,.35)}
+#menu{background:rgba(20,30,70,.35)}
 .card{background:var(--paper);border:3px solid var(--ink);border-radius:6px;padding:14px 22px;box-shadow:5px 5px 0 rgba(0,0,0,.35);transform:rotate(-1.5deg);max-width:min(90vw,520px)}
 h1{margin:0;font-size:clamp(26px,6vw,46px);line-height:1.05}
 p{margin:8px 0 0;font-size:clamp(14px,2.6vw,18px)}
@@ -27,7 +27,7 @@ p{margin:8px 0 0;font-size:clamp(14px,2.6vw,18px)}
 /* окно диалога */
 #dlg{position:fixed;left:50%;bottom:max(12px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:5;width:min(92vw,720px);box-sizing:border-box;background:var(--paper);border:3px solid var(--ink);border-radius:6px;box-shadow:5px 5px 0 rgba(0,0,0,.35);padding:12px 18px 14px;cursor:pointer}
 #dname{position:absolute;top:-17px;left:14px;padding:2px 12px;border:3px solid var(--ink);border-radius:5px;font-weight:bold;font-size:clamp(14px,2.4vw,18px);transform:rotate(-2deg)}
-#dtext{font-size:clamp(16px,3vw,22px);min-height:1.3em;line-height:1.3;padding-top:4px}
+#dtext{font-size:clamp(16px,3vw,22px);min-height:1.3em;line-height:1.3;padding-top:4px;white-space:pre-line}
 #dnext{position:absolute;right:12px;bottom:6px;font-size:14px;animation:blink .8s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
 /* бой */
@@ -42,6 +42,14 @@ p{margin:8px 0 0;font-size:clamp(14px,2.6vw,18px)}
 #throw span{font-size:34px;line-height:1;margin-bottom:2px}
 #throw.cd{opacity:.55}
 #throw:active{transform:translate(2px,2px);box-shadow:2px 2px 0 rgba(0,0,0,.35)}
+#banner{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center;padding-top:calc(var(--tgtop) + 8vh);box-sizing:border-box;z-index:7;pointer-events:none}
+#banner span{font-family:Impact,"Arial Black","Helvetica Neue",Arial,sans-serif;font-weight:900;font-size:clamp(54px,12vw,150px);letter-spacing:.04em;line-height:1;white-space:nowrap;
+  background:linear-gradient(#fff6a0,#ffd21e 45%,#ff7a00);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:5px #1d1d1d;paint-order:stroke fill;
+  filter:drop-shadow(7px 7px 0 rgba(0,0,0,.45));animation:bang .65s cubic-bezier(.2,1.7,.45,1) both,wob 1.1s .65s ease-in-out infinite alternate}
+#banner.lose span{background:linear-gradient(#ffb4a8,#e8433a 50%,#7d150e);-webkit-background-clip:text;background-clip:text;animation:drop .7s cubic-bezier(.3,1.5,.5,1) both,wob 1.1s .7s ease-in-out infinite alternate}
+@keyframes bang{0%{transform:scale(0) rotate(-25deg)}100%{transform:scale(1) rotate(-5deg)}}
+@keyframes drop{0%{transform:translateY(-120vh) rotate(8deg)}100%{transform:translateY(0) rotate(4deg)}}
+@keyframes wob{from{transform:scale(1) rotate(-5deg)}to{transform:scale(1.07) rotate(-2deg)}}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:8;transition:opacity .7s}
 #fade.on{opacity:1}
 </style>
@@ -55,15 +63,12 @@ p{margin:8px 0 0;font-size:clamp(14px,2.6vw,18px)}
   <div class="hp r" id="hpN"><b>Настя</b><i><s style="background:#f27ab8"></s></i></div>
 </div>
 <button id="throw" hidden><span>❄</span>Снежок</button>
+<div id="banner" hidden><span></span></div>
 <div id="fade"></div>
 
 <div class="screen" id="menu">
   <div class="card"><h1>Popovkino Village</h1><p>Новогодняя история</p></div>
   <button class="btn" id="start">Играть</button>
-</div>
-<div class="screen" id="over" hidden>
-  <div class="card"><h1 id="otitle"></h1><p id="otext"></p></div>
-  <button class="btn" id="again">Ещё раз</button>
 </div>
 <div class="screen" id="rot" hidden>
   <div class="card"><h1>↻</h1><p>Поверни телефон горизонтально</p></div>
@@ -111,7 +116,11 @@ const SFX={
   jump:()=>snd(300,.16,'square',.04,1.9),
   blip:who=>snd(who===L?460:640,.03,'square',.018),
   jingle:()=>[523,659,784,1047].forEach((f,i)=>setTimeout(()=>snd(f,.18,'triangle',.1),i*110)),
-  sad:()=>[392,349,311,262].forEach((f,i)=>setTimeout(()=>snd(f,.28,'triangle',.09),i*180))
+  sad:()=>[392,349,311,262].forEach((f,i)=>setTimeout(()=>snd(f,.28,'triangle',.09),i*180)),
+  fanfare:()=>{[[523,0],[659,.12],[784,.24],[1047,.36]].forEach(([f,t])=>setTimeout(()=>snd(f,.16,'square',.06),t*1000));
+    setTimeout(()=>{[523,659,784,1047].forEach(f=>snd(f,.9,'triangle',.07))},560)},
+  lose:()=>[[392,.0,.42],[370,.45,.42],[349,.9,.42],[330,1.35,1.1]].forEach(([f,t,d])=>setTimeout(()=>snd(f,d,'sawtooth',.05,.94),t*1000)),
+  flump:()=>noiseHit(260+Math.random()*120,.6,.13,.25)
 };
 
 /* ---------- поворот экрана ---------- */
@@ -199,7 +208,7 @@ function updExplore(dt){
 let dlgWait=null,typing=null;
 function say(c,text){return new Promise(res=>{
   $('dlg').hidden=false;$('dname').textContent=c.name;$('dname').style.background=c.color;$('dtext').textContent='';$('dnext').hidden=true;
-  c.say=1;let i=0;clearInterval(typing);
+  c.say=1;cam.focus=c;let i=0;clearInterval(typing);
   const done=()=>{clearInterval(typing);typing=null;$('dtext').textContent=text;$('dnext').hidden=false};
   typing=setInterval(()=>{i++;$('dtext').textContent=text.slice(0,i);if(i%2)SFX.blip(c);if(i>=text.length)done()},32);
   dlgWait=()=>{if(typing){done();return}dlgWait=null;c.say=null;$('dlg').hidden=true;res()}})}
@@ -238,7 +247,7 @@ async function startTalk(){if(mode!='explore')return;talked=true;mode='cut';$('t
   await say(L,'Нормального ты снеговика слепила');
   await say(N,'Ага, полдня пыхтела над ним');
   await say(L,'Ну ладно, развлекайся');
-  N.dir='right';N.anim='sculpt';
+  cam.focus=null;N.dir='right';N.anim='sculpt';
   await walkTo(L,L.x-75,L.y+6);await walkTo(L,L.x-75,L.y+4);   // отворачивается и уходит пару шагов
   await wait(450);
   N.anim=null;N.dir='left';await wait(300);
@@ -248,6 +257,7 @@ async function startTalk(){if(mode!='explore')return;talked=true;mode='cut';$('t
   await say(L,'Эй, в спину не стреляют');
   await say(N,'Хах, зато чётко попала');
   await say(L,'Ну держись тогда');
+  cam.focus=null;
   await fadeTo(1);setupFight();await wait(350);await fadeTo(0);
   hint(touchDev?'Джойстик вверх — прыжок, кнопка — снежок':'← → ходить, ↑ прыжок, Пробел — снежок',4000);
 }
@@ -260,7 +270,7 @@ function setupFight(){mode='fight';balls=[];parts=[];
   Object.assign(L,{x:1640,y:FY,z:0,vz:0,hp:100,flash:0,inv:0,goal:null,anim:null,cd:0});
   Object.assign(N,{x:2300,y:FY,z:0,vz:0,hp:100,flash:0,inv:0,goal:null,anim:null});
   Object.assign(BOT,{think:0,want:550,mdir:0,cd:1.4,react:-1});
-  jumpQ=throwQ=false;joy=null;$('hud').hidden=false;$('throw').hidden=false;$('over').hidden=true;hud();updCam(0,true)}
+  jumpQ=throwQ=false;joy=null;cam.focus=null;$('hud').hidden=false;$('throw').hidden=false;hud();updCam(0,true)}
 function hud(){$('hpL').querySelector('s').style.width=L.hp+'%';$('hpN').querySelector('s').style.width=N.hp+'%'}
 function jump(c){if(c.z>0||c.vz)return;c.vz=900;SFX.jump()}
 function fightThrow(c){const f=c.dir=='right'?1:-1,h=heroH(c.y);spawnBall(c,f*820,0,c.z>20?-c.z*1.1:120)}
@@ -291,18 +301,84 @@ function bot(dt){
   if(BOT.react>=0){BOT.react-=dt;if(BOT.react<0)jump(N)}
   BOT.cd-=dt;if(BOT.cd<=0&&!N.z){fightThrow(N);BOT.cd=Math.random()<.18?rnd(.3,.45):rnd(.95,1.6)}
 }
-function endFight(win){if(mode!='fight')return;mode='over';$('throw').hidden=true;joy=null;
-  setTimeout(()=>{(win?SFX.jingle:SFX.sad)();$('otitle').textContent=win?'Лера победила!':'Настя победила';
-    $('otext').textContent=win?'Настя вся в снегу. Продолжение следует…':'Реванш?';$('over').hidden=false},900)}
-$('again').onclick=async()=>{$('over').hidden=true;await fadeTo(1);setupFight();await wait(250);await fadeTo(0)};
+let burial=null,drops=[],confetti=[];
+function endFight(win){if(mode!='fight')return;mode='over';$('throw').hidden=true;joy=null;afterFight(win)}
+async function afterFight(win){
+  const loser=win?N:L,winner=win?L:N;
+  await wait(500);
+  for(const b of balls)b.dead=1;
+  loser.dir='down';loser.flash=0;winner.cheer=1;
+  cam.focus=loser;burial={c:loser,t:0,pile:0};
+  await wait(3000);
+  if(win){cam.focus=L;await wait(800)}
+  banner(win?'YOU WIN':'YOU LOSE',win);
+  await wait(2000);
+  await fadeTo(1);
+  $('banner').hidden=true;$('hud').hidden=true;burial=null;drops=[];confetti=[];parts=[];winner.cheer=0;
+  Object.assign(L,{x:1745,y:596,z:0,vz:0,dir:'right',flash:0,mv:0});
+  Object.assign(N,{x:1945,y:578,z:0,vz:0,dir:'left',flash:0,mv:0});
+  mode='cut';cam.focus=null;updCam(0,true);
+  await wait(300);await fadeTo(0);await wait(300);
+  if(win){
+    await say(L,'Вот так! Вот она, победа');
+    await say(N,'Да ты ваще блин со всей дури метнула, мне аж плохо стало');
+    await say(L,'Да ладно, бро\nЗато хоть немного размялись');
+    await say(N,'Ага, я чуть с ума не сошла\nЛадно, не мешай мне');
+    await say(L,'Ладно, пойду остальных найду');
+  }else{
+    await say(N,'Хах, вот это нифига себе, вот эта я крутая');
+    await say(L,'Тебе повезло, у меня руки замерзли просто');
+    await say(N,'Ага, я так и подумала');
+    await say(L,'Ладно, развлекайся дальше, пойду к ребятам схожу');
+  }
+  cam.focus=null;N.dir='right';N.anim='sculpt';mode='explore';
+  hint('Гуляй дальше — остальные скоро появятся',4500);
+}
+function banner(text,win){const b=$('banner');b.className=win?'':'lose';b.querySelector('span').textContent=text;
+  b.hidden=true;void b.offsetWidth;b.hidden=false;(win?SFX.fanfare:SFX.lose)();
+  if(win)for(let i=0;i<90;i++)confetti.push({x:W/2+rnd(-40,40),y:H*.45,vx:rnd(-420,420),vy:rnd(-650,-150),r:rnd(0,6.3),vr:rnd(-9,9),w:rnd(6,11),h:rnd(10,16),c:['#e8433a','#ffd21e','#a6e22e','#4ab3ff','#f27ab8'][i%5]})}
+/* снег падает с неба и засыпает проигравшего: растёт сугроб, в конце видны только глаза */
+function updBurial(dt){if(!burial)return;const b=burial,c=b.c,h=heroH(c.y);b.t+=dt;
+  const p=Math.min(1,Math.max(0,(b.t-.35)/2.1));b.pile=1-(1-p)*(1-p);
+  if(b.t<2.6)for(let i=0;i<4;i++)if(Math.random()<.7)drops.push({x:c.x+rnd(-h*.38,h*.38),y:c.y-h-rnd(250,600),vy:rnd(500,800),r:rnd(5,12)});
+  const top=c.y-h*1.08*b.pile;
+  for(const d of drops){d.y+=d.vy*dt;if(d.y>=top+d.r*.5){d.dead=1;if(Math.random()<.04)SFX.flump()}}
+  drops=drops.filter(d=>!d.dead)}
+function drawMound(c){const b=burial,h=heroH(c.y),ph=h*1.1*b.pile;if(ph<2)return;const x=c.x,y=c.y,bw=h*(.34+.36*b.pile);
+  ctx.fillStyle='#f3f6fa';ctx.strokeStyle='#1d1d1d';ctx.lineWidth=3;ctx.lineJoin='round';
+  // широкий круглый сугроб с комковатой верхушкой
+  ctx.beginPath();ctx.moveTo(x-bw,y+3);
+  ctx.bezierCurveTo(x-bw*.78,y-ph*.62,x-bw*.62,y-ph*.97,x-bw*.26,y-ph*.99);
+  ctx.quadraticCurveTo(x-bw*.1,y-ph*1.05,x+bw*.06,y-ph*1.0);
+  ctx.quadraticCurveTo(x+bw*.24,y-ph*1.04,x+bw*.36,y-ph*.96);
+  ctx.bezierCurveTo(x+bw*.66,y-ph*.92,x+bw*.8,y-ph*.6,x+bw,y+3);ctx.closePath();ctx.fill();ctx.stroke();
+  // пара складок на снегу
+  ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x-bw*.55,y-ph*.35);ctx.quadraticCurveTo(x-bw*.4,y-ph*.42,x-bw*.25,y-ph*.36);
+  ctx.moveTo(x+bw*.2,y-ph*.22);ctx.quadraticCurveTo(x+bw*.38,y-ph*.3,x+bw*.55,y-ph*.2);ctx.stroke();ctx.lineWidth=3;
+  if(b.pile>=1){ // из сугроба торчат только глаза
+    const ey=y-h*.8,er=h*.042,blink=(time%3.2)<.12,look=c===N?-1:1;
+    for(const s of [-1,1]){const ex=x+s*er*1.05;ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(ex,ey,er,blink?er*.12:er*1.25,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      if(!blink){ctx.fillStyle='#1d1d1d';ctx.beginPath();ctx.arc(ex+look*er*.4,ey+er*.15,er*.33,0,Math.PI*2);ctx.fill()}}}}
+function drawDrops(){ctx.fillStyle='#fbfdff';ctx.strokeStyle='#1d1d1d';ctx.lineWidth=2;for(const d of drops){ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);ctx.fill();ctx.stroke()}}
+function drawConfetti(dt){for(const p of confetti){p.vy+=900*dt;p.vx*=.99;p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.vr*dt;
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h*Math.abs(Math.cos(p.r*1.7)));ctx.restore()}
+  confetti=confetti.filter(p=>p.y<H+40)}
 
 /* ---------- камера ---------- */
+cam.z=1;cam.focus=null;
 function updCam(dt,snap){
-  cam.s=Math.max(W/1280,H/WH);const vw=W/cam.s,vh=H/cam.s,h=heroH(L.y);
-  let fx=L.x;if(mode=='fight'||mode=='over')fx=(L.x+N.x)/2;
-  let minX=0;if(mode=='fight'||mode=='over')minX=Math.min(1320,WW-vw);
-  const tx=clamp(fx-vw/2,minX,Math.max(minX,WW-vw)),ty=clamp(L.y-h*.6-vh/2,0,Math.max(0,WH-vh));
-  const k=snap?1:Math.min(1,dt*5);cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*k}
+  const k=snap?1:Math.min(1,dt*3.2),f=cam.focus;
+  // камера: на говорящего / проигравшего — с небольшим приближением
+  cam.z+=((f?1.25:1)-cam.z)*(snap?1:k);
+  const base=Math.max(W/1280,H/WH),cx0=cam.x+W/cam.s/2,cy0=cam.y+H/cam.s/2;
+  cam.s=base*cam.z;const vw=W/cam.s,vh=H/cam.s;
+  let fx,fy;
+  if(f){const h=heroH(f.y);fx=f.x;fy=f.y-h*.5+vh*.1}
+  else{const h=heroH(L.y);fx=(mode=='fight'||mode=='over')?(L.x+N.x)/2:L.x;fy=L.y-h*.6}
+  const minX=(!f&&(mode=='fight'||mode=='over'))?Math.min(1320,WW-vw):0;
+  // плавно двигаем центр кадра, затем ограничиваем краями мира
+  const cx=snap?fx:cx0+(fx-cx0)*k,cy=snap?fy:cy0+(fy-cy0)*k;
+  cam.x=clamp(cx-vw/2,minX,Math.max(minX,WW-vw));cam.y=clamp(cy-vh/2,0,Math.max(0,WH-vh))}
 
 /* ---------- рисование ---------- */
 const VIEW={down:'front',up:'back',left:'side',right:'side'};
@@ -318,6 +394,7 @@ function drawChar(c){
   ctx.save();if(c.flash>0&&Math.floor(c.flash*20)%2)ctx.globalAlpha=.45;
   ctx.translate(c.x,c.y-bob-c.z);ctx.rotate(tilt);if(c.dir=='left')ctx.scale(-1,1);ctx.scale(1,sy);
   ctx.drawImage(im,-w/2,-h,w,h);ctx.restore();
+  if(burial&&burial.c===c)drawMound(c);
   if(c.bub)drawBubble(c.x,c.y-c.z-h-10,c.bub.t)}
 function drawBubble(x,y,t){ctx.font='bold 22px "Comic Sans MS","Chalkboard SE",Arial';const w=ctx.measureText(t).width+22;
   ctx.fillStyle='#fffdf6';ctx.strokeStyle='#1d1d1d';ctx.lineWidth=3;ctx.beginPath();ctx.roundRect?ctx.roundRect(x-w/2,y-38,w,34,8):ctx.rect(x-w/2,y-38,w,34);ctx.fill();ctx.stroke();
@@ -361,7 +438,8 @@ let last=0;
 function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;time+=dt;
   if(mode=='explore')updExplore(dt);
   else if(mode=='fight')updFight(dt);
-  else if(mode=='over')for(const c of CH){physics(c,dt);stepAnim(c,0,0,dt)}
+  else if(mode=='over')for(const c of CH){physics(c,dt);stepAnim(c,0,0,dt);if(c.cheer&&!c.z&&!c.vz&&Math.random()<dt*1.6){c.vz=560;SFX.jump()}}
+  updBurial(dt);
   for(const c of CH){goalStep(c,dt);c.flash=Math.max(0,c.flash-dt);c.lean=Math.max(0,c.lean-dt*5);if(c.bub&&(c.bub.ttl-=dt)<0)c.bub=null}
   updBalls(dt);
   updCam(dt);
@@ -371,10 +449,10 @@ function loop(ts){const dt=Math.min(.05,(ts-last)/1000||0);last=ts;time+=dt;
   // всё, что стоит на земле, рисуем от дальнего к ближнему
   const list=[{y:SIGN.base,d:drawSign},{y:SNOWMAN.y,d:drawSnowman},...CH.map(c=>({y:c.y+.1,d:()=>drawChar(c)})),...balls.map(b=>({y:b.y+.2,d:()=>drawBall(b)}))];
   list.sort((a,b)=>a.y-b.y);for(const it of list)it.d();
-  drawParts();
+  drawParts();drawDrops();
   if(L.target&&mode=='explore'){ctx.strokeStyle='rgba(29,29,29,.5)';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(L.target[0],L.target[1],14,5,0,0,Math.PI*2);ctx.stroke()}
   ctx.restore();
-  drawSnow(dt);drawJoy();
+  drawSnow(dt);drawJoy();drawConfetti(dt);
   requestAnimationFrame(loop)}
 
 function hint(t,ms){const h=$('hint');h.textContent=t;h.classList.remove('off');h.classList.toggle('low',mode=='fight');clearTimeout(hint.t);hint.t=setTimeout(()=>h.classList.add('off'),ms||4000)}
