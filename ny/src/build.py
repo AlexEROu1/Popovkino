@@ -27,6 +27,9 @@ def data_url(name):
 frames = sorted((here / 'art' / 'intro').glob('k*.*')) if (here / 'art' / 'intro').exists() else []
 entries = ''.join(f"{f.stem}:img('{{{{ART:intro/{f.name}}}}}')," for f in frames if f.suffix.lower() in ('.jpg', '.jpeg', '.png'))
 src = src.replace('/*INTRO_IMAGES*/', entries)
+# ноты гитарной мини-игры
+if (here / 'art' / 'audio' / 'stepa_chart.json').exists():
+    src = src.replace('/*CHART_JSON*/null', (here / 'art' / 'audio' / 'stepa_chart.json').read_text())
 # Лера в пижаме, если лист уже вырезан
 if (here / 'art' / 'lera_pj_side.png').exists():
     views = ','.join(f"{v}:img('{{{{ART:lera_pj_{v}.png}}}}')" for v in ('front', 'side', 'back') if (here / 'art' / f'lera_pj_{v}.png').exists())
