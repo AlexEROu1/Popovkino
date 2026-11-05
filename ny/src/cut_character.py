@@ -23,7 +23,7 @@ print(segs)
 # soft alpha: blur mask slightly
 a=Image.fromarray((fg*255).astype('uint8')).filter(ImageFilter.GaussianBlur(0.7))
 rgba=Image.fromarray(im.astype('uint8')).convert('RGBA');rgba.putalpha(a)
-names=['front','side','back','side2']
+names=['front','side_bad','back','side']  # 2-я поза: ноги развёрнуты не туда, берём 4-ю
 for nm,(x0,x1) in zip(names,segs):
     sub=fg[:,x0:x1];ys=np.where(sub.any(1))[0]
     c=rgba.crop((x0-2,ys[0]-2,x1+2,ys[-1]+3));c.save(S+nm+'.png');print(nm,c.size)
