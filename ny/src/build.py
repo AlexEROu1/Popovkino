@@ -10,6 +10,8 @@ src = (here / 'game.src.html').read_text(encoding='utf-8')
 
 def data_url(name):
     p = here / 'art' / name
+    if p.suffix == '.mp3':
+        return 'data:audio/mpeg;base64,' + base64.b64encode(p.read_bytes()).decode()
     im = Image.open(p)
     if name.startswith('intro/'):
         im = im.convert('RGB')

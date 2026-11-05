@@ -437,9 +437,18 @@ function popText(text,color){pop={text,color:color||'#ffd21e',t:0}}
 function shake(s){shakeT=s||.5}
 function puff(x,y){for(let i=0;i<26;i++)ipuff.push({x,y,vx:rnd(-160,160),vy:rnd(-200,60),r:rnd(14,34),t:rnd(.5,.9)});SFX.puff()}
 /* музыка-шкатулка, пока нет своей */
-function musicOn(){musicOff();const N1=[523,659,784,659,587,698,880,698,523,659,784,1047,988,784,659,587];let i=0;
-  music=setInterval(()=>{const f=N1[i++%N1.length];snd(f,.5,'triangle',.035);if(i%4==1)snd(f/2,.9,'sine',.03)},330)}
-function musicOff(){clearInterval(music);music=null}
+/* музыка заставки (из присланного видео); если не загрузится — шкатулка */
+const MUSIC_SRC='{{ART:audio/intro_music.mp3}}';
+let musicBuf=null,musicLoading=null,musicNode=null,musicGain=null;
+function loadMusic(){if(musicBuf)return Promise.resolve(musicBuf);if(musicLoading||!ac)return musicLoading||Promise.resolve(null);
+  musicLoading=new Promise(res=>{try{const bin=atob(MUSIC_SRC.split(',')[1]),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);
+    const ok=b=>{musicBuf=b;res(b)},bad=()=>res(null),r=ac.decodeAudioData(u.buffer,ok,bad);if(r&&r.then)r.then(ok,bad)}catch(e){res(null)}});return musicLoading}
+function musicOn(){musicOff();if(!OPT.sound||!ac)return;
+  if(musicBuf){try{musicNode=ac.createBufferSource();musicNode.buffer=musicBuf;musicGain=ac.createGain();musicGain.gain.value=.9;musicNode.connect(musicGain);musicGain.connect(ac.destination);musicNode.start(0)}catch(e){musicNode=null}if(musicNode)return}
+  musicBox()}
+function musicBox(){const N1=[523,659,784,659,587,698,880,698,523,659,784,1047,988,784,659,587];let i=0;
+  clearInterval(music);music=setInterval(()=>{const f=N1[i++%N1.length];snd(f,.5,'triangle',.035);if(i%4==1)snd(f/2,.9,'sine',.03)},330)}
+function musicOff(fade){clearInterval(music);music=null;if(musicNode){const n=musicNode,g=musicGain;musicNode=null;try{const t=ac.currentTime,f=fade||.05;g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(g.gain.value,t);g.gain.linearRampToValueAtTime(0,t+f);n.stop(t+f+.05)}catch(e){}}}
 
 /* камера для общего плана деревни */
 function introCam(dt){if(!shot||shot.type!='world')return;const k=clamp(shot.t/shot.dur,0,1),e=k*k*(3-2*k),a=shot.from,b=shot.to;
@@ -486,8 +495,9 @@ function drawCard(text,y,a,size,sub){ctx.save();ctx.globalAlpha=a;ctx.font='bold
 
 /* сценарий заставки */
 async function intro(){const id=++introId,ok=()=>{if(id!==introId)throw 0};
-  mode='intro';$('skip').hidden=false;$('goal').hidden=true;musicOn();ifade=1;
+  mode='intro';$('skip').hidden=false;$('goal').hidden=true;ifade=1;
   try{
+    await Promise.race([loadMusic(),wait(1500)]);ok();musicOn();
     shot={type:'world',t:0,dur:7000,from:{x:640,y:470,vw:1350},to:{x:700,y:330,vw:620},
       cards:[{text:'Popovkino Village',at:1200,y:.2,size:38},{text:'1 января. 11:47',at:3600,y:.78,size:28}]};
     await fadeI(0,900);ok();await wait(6200);ok();
@@ -499,7 +509,7 @@ async function intro(){const id=++introId,ok=()=>{if(id!==introId)throw 0};
     await cut({key:'k6',label:'Лера у окна, улыбается',bg:'#ffe9a8',z:[1,1.12],p:[.5,.55,.5,.45],dur:3200});ok();SFX.birds();await wait(3000);ok();
     // коридор: Лера радостно идёт к туалету
     await cut({key:'k7',label:'Коридор. Дверь в туалет',bg:'#d8c3a5',dur:3600,walk:{art:'pj',x0:-.15,x1:.68,dur:3000,t0:300}});ok();await wait(3500);ok();
-    SFX.creak();await wait(500);ok();
+    musicOff(.25);SFX.creak();await wait(500);ok();
     await cut({key:'k8',label:'Лера в ужасе кричит!',bg:'#f2b6b0',z:[1.1,1.2],dur:1800},120);ok();shake(.7);SFX.scream();popText('А-А-А!','#ff5a4a');await wait(1700);ok();
     await cut({key:'k9',label:'Лёша лежит на полу у туалета и кряхтит',bg:'#c6d8cf',z:[1,1.1],dur:9000});ok();SFX.groan();await wait(700);ok();
     await say(L,'О боже, Лёш, как тебе не стыдно?');ok();
